@@ -12,27 +12,27 @@ from app.services.user_service import UserService
 
 # ── Session dependency ────────────────────────────────────────────────────────
 
-DbSession = Annotated[AsyncSession, Depends(get_db)]
+DatabaseSession = Annotated[AsyncSession, Depends(get_db)]
 
 # ── Repository dependency ─────────────────────────────────────────────────────
 
 
-def get_user_repository(session: DbSession) -> UserRepository:
+def get_user_repository(database_session: DatabaseSession) -> UserRepository:
     """Provide a UserRepository bound to the current request session."""
-    return UserRepository(session)
+    return UserRepository(database_session)
 
 
-UserRepo = Annotated[UserRepository, Depends(get_user_repository)]
+UserRepositoryDependency = Annotated[UserRepository, Depends(get_user_repository)]
 
 # ── Service dependency ────────────────────────────────────────────────────────
 
 
-def get_user_service(repository: UserRepo) -> UserService:
+def get_user_service(user_repository: UserRepositoryDependency) -> UserService:
     """Provide a UserService with its repository injected."""
-    return UserService(repository)
+    return UserService(user_repository)
 
 
-UserSvc = Annotated[UserService, Depends(get_user_service)]
+UserServiceDependency = Annotated[UserService, Depends(get_user_service)]
 
 # ── Auth dependency ───────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ _bearer_scheme = HTTPBearer()
 
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(_bearer_scheme)],
-    service: UserSvc,
+    user_service: UserServiceDependency,
 ) -> UserRead:
     """Validate JWT and return the authenticated user."""
     payload = decode_access_token(credentials.credentials)
@@ -54,7 +54,7 @@ async def get_current_user(
     user_id: str | None = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
-    return await service.get_user(user_id)
+    return await user_service.get_user(user_id)
 
 
-CurrentUser = Annotated[UserRead, Depends(get_current_user)]
+CurrentUserDependency = Annotated[UserRead, Depends(get_current_user)]
