@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
-from app.core.dependencies import CurrentUserDependency, UserServiceDependency
+from app.core.dependencies import get_current_user
 from app.schemas.user import (
     LoginRequest,
     TokenResponse,
@@ -9,31 +9,40 @@ from app.schemas.user import (
     UserRead,
     UserUpdate,
 )
+from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def register(data: UserCreate, user_service: UserServiceDependency) -> UserRead:
+async def register(
+    data: UserCreate,
+    user_service: UserService = Depends(UserService),
+) -> UserRead:
     """Register a new user account."""
     return await user_service.register(data)
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: LoginRequest, user_service: UserServiceDependency) -> TokenResponse:
+async def login(
+    data: LoginRequest,
+    user_service: UserService = Depends(UserService),
+) -> TokenResponse:
     """Authenticate and receive a JWT access token."""
     return await user_service.login(data)
 
 
 @router.get("/me", response_model=UserRead)
-async def get_me(current_user: CurrentUserDependency) -> UserRead:
+async def get_me(
+    current_user: UserRead = Depends(get_current_user),
+) -> UserRead:
     """Return the currently authenticated user's profile."""
     return current_user
 
 
 @router.get("", response_model=list[UserRead])
 async def list_users(
-    user_service: UserServiceDependency,
+    user_service: UserService = Depends(UserService),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ) -> list[UserRead]:
@@ -42,13 +51,20 @@ async def list_users(
 
 
 @router.get("/{user_id}", response_model=UserRead)
-async def get_user(user_id: str, user_service: UserServiceDependency) -> UserRead:
+async def get_user(
+    user_id: str,
+    user_service: UserService = Depends(UserService),
+) -> UserRead:
     """Retrieve a user by their ID."""
     return await user_service.get_user(user_id)
 
 
 @router.patch("/{user_id}", response_model=UserRead)
-async def update_user(user_id: str, data: UserUpdate, user_service: UserServiceDependency) -> UserRead:
+async def update_user(
+    user_id: str,
+    data: UserUpdate,
+    user_service: UserService = Depends(UserService),
+) -> UserRead:
     """Update a user's profile fields."""
     return await user_service.update_user(user_id, data)
 
@@ -57,14 +73,17 @@ async def update_user(user_id: str, data: UserUpdate, user_service: UserServiceD
 async def change_password(
     user_id: str,
     data: UserPasswordUpdate,
-    user_service: UserServiceDependency,
-    current_user: CurrentUserDependency,
+    user_service: UserService = Depends(UserService),
+    current_user: UserRead = Depends(get_current_user),
 ) -> UserRead:
     """Change a user's password (requires authentication)."""
     return await user_service.change_password(user_id, data)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: str, user_service: UserServiceDependency) -> None:
+async def delete_user(
+    user_id: str,
+    user_service: UserService = Depends(UserService),
+) -> None:
     """Delete a user by their ID."""
     await user_service.delete_user(user_id)

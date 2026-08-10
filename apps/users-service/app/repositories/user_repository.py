@@ -1,9 +1,11 @@
 import uuid
 
+from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
+from app.db.session import get_db
 from app.models.user import User
 from app.repositories.base import AbstractRepository
 from app.schemas.user import UserCreate, UserUpdate
@@ -13,9 +15,10 @@ class UserRepository(AbstractRepository[User, UserCreate, UserUpdate]):
     """
     Concrete repository for User persistence operations.
     All database access is encapsulated here — services never touch SQLAlchemy directly.
+    FastAPI resolves the AsyncSession automatically via Depends(get_db).
     """
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession = Depends(get_db)) -> None:
         super().__init__(session)
 
     async def get_by_id(self, entity_id: str) -> User | None:
