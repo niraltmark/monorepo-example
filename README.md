@@ -6,7 +6,7 @@ A full-stack **Todo App with User Management** built as an NX monorepo. The proj
 
 ```
 monorepo-example/
-├── apps/
+├── backend/apps/ (or frontend/apps/)
 │   ├── frontend/          # React 19 + Vite + TypeScript (port 5173 / 3000)
 │   ├── users-service/     # FastAPI microservice — user auth & management (port 8001)
 │   └── todos-service/     # FastAPI microservice — todo CRUD (port 8002)

@@ -43,7 +43,7 @@ services:
 
   users-service:
     build:
-      context: ./apps/users-service
+      context: ./backend/apps/users-service
       dockerfile: Dockerfile
     container_name: users-service
     restart: unless-stopped
@@ -64,7 +64,7 @@ services:
 
   todos-service:
     build:
-      context: ./apps/todos-service
+      context: ./backend/apps/todos-service
       dockerfile: Dockerfile
     container_name: todos-service
     restart: unless-stopped
@@ -88,7 +88,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: ./apps/frontend/Dockerfile
+      dockerfile: ./frontend/apps/frontend/Dockerfile
     container_name: frontend
     restart: unless-stopped
     ports:

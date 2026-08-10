@@ -2,22 +2,22 @@
   "name": "users-service-tests",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "library",
-  "sourceRoot": "libs/users-service-tests",
+  "sourceRoot": "tests/users-service-tests",
   "tags": ["scope:backend", "type:test", "lang:python"],
   "implicitDependencies": ["users-service"],
   "targets": {
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python -m pytest unit/ integration/ -v --cov=../../apps/users-service/app --cov-report=term-missing",
-        "cwd": "libs/users-service-tests"
+        "command": "python -m pytest unit/ integration/ -v --cov=../../backend/apps/users-service/app --cov-report=term-missing",
+        "cwd": "tests/users-service-tests"
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
         "command": "python -m ruff check unit/ integration/",
-        "cwd": "libs/users-service-tests"
+        "cwd": "tests/users-service-tests"
       }
     }
   }

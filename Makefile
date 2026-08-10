@@ -5,17 +5,17 @@ help: ## Show this help message
 
 install: ## Install all dependencies (Node + Python)
 	pnpm install
-	cd apps/users-service && pip install -r requirements.txt
-	cd apps/todos-service && pip install -r requirements.txt
+	cd backend/apps/users-service && pip install -r requirements.txt
+	cd backend/apps/todos-service && pip install -r requirements.txt
 
 dev-frontend: ## Start the React frontend dev server
 	pnpm nx serve frontend
 
 dev-users: ## Start the users-service dev server
-	cd apps/users-service && uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+	cd backend/apps/users-service && uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
 dev-todos: ## Start the todos-service dev server
-	cd apps/todos-service && uvicorn app.main:app --reload --host 0.0.0.0 --port 8002
+	cd backend/apps/todos-service && uvicorn app.main:app --reload --host 0.0.0.0 --port 8002
 
 build: ## Build all projects
 	pnpm nx run-many --target=build --all
@@ -42,9 +42,9 @@ docker-logs: ## Tail Docker Compose logs
 	docker compose logs -f
 
 migrate-users: ## Run Alembic migrations for users-service
-	cd apps/users-service && alembic upgrade head
+	cd backend/apps/users-service && alembic upgrade head
 
 migrate-todos: ## Run Alembic migrations for todos-service
-	cd apps/todos-service && alembic upgrade head
+	cd backend/apps/todos-service && alembic upgrade head
 
 migrate-all: migrate-users migrate-todos ## Run all migrations

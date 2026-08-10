@@ -1,29 +1,29 @@
 {
-  "name": "users-service",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "todos-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
-  "sourceRoot": "apps/users-service",
+  "sourceRoot": "backend/apps/todos-service",
   "tags": ["scope:backend", "type:service", "lang:python"],
   "targets": {
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8001",
-        "cwd": "apps/users-service"
+        "command": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8002",
+        "cwd": "backend/apps/todos-service"
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
         "command": "python -m ruff check app/",
-        "cwd": "apps/users-service"
+        "cwd": "backend/apps/todos-service"
       }
     },
     "docker-build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "docker build -t users-service:latest .",
-        "cwd": "apps/users-service"
+        "command": "docker build -t todos-service:latest .",
+        "cwd": "backend/apps/todos-service"
       }
     }
   }

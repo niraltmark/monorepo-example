@@ -2,22 +2,22 @@
   "name": "todos-service-tests",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "library",
-  "sourceRoot": "libs/todos-service-tests",
+  "sourceRoot": "tests/todos-service-tests",
   "tags": ["scope:backend", "type:test", "lang:python"],
   "implicitDependencies": ["todos-service"],
   "targets": {
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python -m pytest unit/ integration/ -v --cov=../../apps/todos-service/app --cov-report=term-missing",
-        "cwd": "libs/todos-service-tests"
+        "command": "python -m pytest unit/ integration/ -v --cov=../../backend/apps/todos-service/app --cov-report=term-missing",
+        "cwd": "tests/todos-service-tests"
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
         "command": "python -m ruff check unit/ integration/",
-        "cwd": "libs/todos-service-tests"
+        "cwd": "tests/todos-service-tests"
       }
     }
   }
