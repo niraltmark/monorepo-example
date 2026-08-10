@@ -1,0 +1,102 @@
+version: "3.9"
+
+services:
+  # ── Databases ──────────────────────────────────────────────────────────────
+
+  users-db:
+    image: postgres:16-alpine
+    container_name: users-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: users_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - users_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d users_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  todos-db:
+    image: postgres:16-alpine
+    container_name: todos-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: todos_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - todos_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d todos_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend Microservices ──────────────────────────────────────────────────
+
+  users-service:
+    build:
+      context: ./apps/users-service
+      dockerfile: Dockerfile
+    container_name: users-service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@users-db:5432/users_db
+      SECRET_KEY: ${SECRET_KEY:-super-secret-change-in-production}
+      DEBUG: "false"
+    depends_on:
+      users-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  todos-service:
+    build:
+      context: ./apps/todos-service
+      dockerfile: Dockerfile
+    container_name: todos-service
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@todos-db:5432/todos_db
+      USERS_SERVICE_URL: http://users-service:8001
+      DEBUG: "false"
+    depends_on:
+      todos-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./apps/frontend/Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - users-service
+      - todos-service
+
+volumes:
+  users_db_data:
+  todos_db_data:

@@ -1,0 +1,37 @@
+{
+  "name": "todos-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/todos-service",
+  "tags": ["scope:backend", "type:service", "lang:python"],
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8002",
+        "cwd": "apps/todos-service"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m pytest tests/ -v --cov=app --cov-report=term-missing",
+        "cwd": "apps/todos-service"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m ruff check app/ tests/",
+        "cwd": "apps/todos-service"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t todos-service:latest .",
+        "cwd": "apps/todos-service"
+      }
+    }
+  }
+}
