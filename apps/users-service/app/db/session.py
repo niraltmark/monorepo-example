@@ -3,12 +3,14 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
 
+# SQLite does not support pool_size / max_overflow — use NullPool for it
+_is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    connect_args={"check_same_thread": False} if _is_sqlite else {},
+    **({} if _is_sqlite else {"pool_pre_ping": True, "pool_size": 10, "max_overflow": 20}),
 )
 
 AsyncSessionFactory = async_sessionmaker(

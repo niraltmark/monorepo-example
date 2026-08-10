@@ -30,7 +30,7 @@ class Todo(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(
-        Enum("pending", "in_progress", "done", name="todo_status"),
+        Enum("pending", "in_progress", "done", name="todo_status", native_enum=False),
         default="pending",
         nullable=False,
     )
