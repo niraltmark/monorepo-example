@@ -1,0 +1,51 @@
+{
+  "name": "comments-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "backend/apps/comments-service",
+  "tags": ["scope:backend", "type:service", "lang:python"],
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python manage.py runserver 0.0.0.0:8003",
+        "cwd": "backend/apps/comments-service"
+      }
+    },
+    "migrate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python manage.py migrate",
+        "cwd": "backend/apps/comments-service"
+      }
+    },
+    "makemigrations": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python manage.py makemigrations",
+        "cwd": "backend/apps/comments-service"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m pytest tests/ -v --cov=comments --cov-report=term-missing",
+        "cwd": "backend/apps/comments-service"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m ruff check comments/ config/",
+        "cwd": "backend/apps/comments-service"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t comments-service:latest .",
+        "cwd": "backend/apps/comments-service"
+      }
+    }
+  }
+}

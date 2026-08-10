@@ -17,6 +17,9 @@ dev-users: ## Start the users-service dev server
 dev-todos: ## Start the todos-service dev server
 	cd backend/apps/todos-service && uvicorn app.main:app --reload --host 0.0.0.0 --port 8002
 
+dev-comments: ## Start the comments-service dev server
+	cd backend/apps/comments-service && python manage.py runserver 0.0.0.0:8003
+
 build: ## Build all projects
 	pnpm nx run-many --target=build --all
 
@@ -47,4 +50,7 @@ migrate-users: ## Run Alembic migrations for users-service
 migrate-todos: ## Run Alembic migrations for todos-service
 	cd backend/apps/todos-service && alembic upgrade head
 
-migrate-all: migrate-users migrate-todos ## Run all migrations
+migrate-comments: ## Run Django migrations for comments-service
+	cd backend/apps/comments-service && python manage.py migrate
+
+migrate-all: migrate-users migrate-todos migrate-comments ## Run all migrations
