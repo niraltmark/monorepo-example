@@ -1,0 +1,37 @@
+{
+  "name": "comments-service-fastapi",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "backend/apps/comments-service-fastapi",
+  "tags": ["scope:backend", "type:service", "lang:python"],
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8004",
+        "cwd": "backend/apps/comments-service-fastapi"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m pytest tests/ -v --cov=app --cov-report=term-missing",
+        "cwd": "backend/apps/comments-service-fastapi"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m ruff check app/",
+        "cwd": "backend/apps/comments-service-fastapi"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t comments-service-fastapi:latest .",
+        "cwd": "backend/apps/comments-service-fastapi"
+      }
+    }
+  }
+}

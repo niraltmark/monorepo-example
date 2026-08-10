@@ -1,0 +1,24 @@
+{
+  "name": "comments-service-fastapi-tests",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tests/comments-service-fastapi-tests",
+  "tags": ["scope:backend", "type:test", "lang:python"],
+  "implicitDependencies": ["comments-service-fastapi"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m pytest unit/ integration/ -v --cov=../../backend/apps/comments-service-fastapi/app --cov-report=term-missing",
+        "cwd": "tests/comments-service-fastapi-tests"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m ruff check unit/ integration/",
+        "cwd": "tests/comments-service-fastapi-tests"
+      }
+    }
+  }
+}
