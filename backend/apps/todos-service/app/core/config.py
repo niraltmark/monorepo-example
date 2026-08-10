@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     USERS_SERVICE_URL: str = "http://localhost:8001"
 
     # CORS
+    REDIS_URL: str = "redis://localhost:6379"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
 

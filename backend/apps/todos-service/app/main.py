@@ -7,14 +7,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.db.session import Base, engine
+from app.event_handlers import register_handlers
+from event_bus.consumer import EventConsumer
+from event_bus.dependencies import init_event_bus
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Create database tables on startup (use Alembic for production migrations)."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    init_event_bus(app, settings.REDIS_URL)
+
+    consumer = EventConsumer(app=app, redis_url=settings.REDIS_URL)
+    register_handlers(consumer)
+    await consumer.start()
+
     yield
+
+    await consumer.stop()
+    await app.state.redis.aclose()
     await engine.dispose()
 
 

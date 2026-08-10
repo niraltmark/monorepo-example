@@ -1,0 +1,16 @@
+{
+  "name": "events",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "libs/events",
+  "tags": ["scope:shared", "type:library", "lang:python"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m ruff check event_bus/",
+        "cwd": "libs/events"
+      }
+    }
+  }
+}

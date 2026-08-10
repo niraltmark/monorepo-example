@@ -10,44 +10,44 @@ from app.schemas.user import (
     UserRead,
     UserUpdate,
 )
+from event_bus.dependencies import get_event_publisher
+from event_bus.publisher import EventPublisher
+from event_bus.schemas import UserCreatedEvent, UserDeletedEvent, UserUpdatedEvent
 
 
 class UserService:
     """
-    Service layer containing all business logic for user management.
-    FastAPI resolves UserRepository automatically via Depends(UserRepository).
+    Service layer for user management.
+    Publishes a domain event to Redis after every mutating operation.
+    FastAPI resolves all dependencies via Depends().
     """
 
-    def __init__(self, user_repository: UserRepository = Depends(UserRepository)) -> None:
+    def __init__(
+        self,
+        user_repository: UserRepository = Depends(UserRepository),
+        event_publisher: EventPublisher = Depends(get_event_publisher),
+    ) -> None:
         self._repository = user_repository
+        self._publisher = event_publisher
 
     async def register(self, data: UserCreate) -> UserRead:
         if await self._repository.get_by_email(data.email):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A user with this email already exists.",
-            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A user with this email already exists.")
         if await self._repository.get_by_username(data.username):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A user with this username already exists.",
-            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A user with this username already exists.")
         user = await self._repository.create(data)
-        return UserRead.model_validate(user)
+        result = UserRead.model_validate(user)
+        await self._publisher.publish(
+            UserCreatedEvent(payload={"user_id": result.id, "email": result.email, "username": result.username})
+        )
+        return result
 
     async def login(self, data: LoginRequest) -> TokenResponse:
         user = await self._repository.get_by_email(data.email)
         if not user or not verify_password(data.password, user.hashed_password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.", headers={"WWW-Authenticate": "Bearer"})
         if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="This account has been deactivated.",
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account has been deactivated.")
         token = create_access_token(subject=user.id)
         return TokenResponse(access_token=token)
 
@@ -65,21 +65,27 @@ class UserService:
         user = await self._repository.update(user_id, data)
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-        return UserRead.model_validate(user)
+        result = UserRead.model_validate(user)
+        await self._publisher.publish(
+            UserUpdatedEvent(payload={"user_id": result.id, "changes": data.model_dump(exclude_unset=True)})
+        )
+        return result
 
     async def change_password(self, user_id: str, data: UserPasswordUpdate) -> UserRead:
         user = await self._repository.get_by_id(user_id)
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
         if not verify_password(data.current_password, user.hashed_password):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Current password is incorrect.",
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect.")
         updated = await self._repository.update_password(user_id, hash_password(data.new_password))
-        return UserRead.model_validate(updated)
+        result = UserRead.model_validate(updated)
+        await self._publisher.publish(
+            UserUpdatedEvent(payload={"user_id": result.id, "changes": {"password": "changed"}})
+        )
+        return result
 
     async def delete_user(self, user_id: str) -> None:
         deleted = await self._repository.delete(user_id)
         if not deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+        await self._publisher.publish(UserDeletedEvent(payload={"user_id": user_id}))
