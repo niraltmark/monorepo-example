@@ -15,33 +15,35 @@ class EventPublisher:
     """
     Publishes domain events to Redis Pub/Sub.
 
-    Automatically embeds the current RequestContext (from ContextService)
-    into every outgoing event under the ``context`` key. This allows the
-    EventConsumer on the receiving end to restore the context before
-    invoking handlers, so ContextService.get() returns the correct user
-    inside event handlers — exactly as it does inside HTTP route handlers.
+    Automatically embeds the current RequestContext into every outgoing event
+    under the ``context`` key by reading from the injected ContextService.
+    The EventConsumer on the receiving end restores this context onto the
+    synthetic Request's state before invoking handlers, so ContextService.get()
+    returns the correct user inside event handlers.
 
-    Designed to be used as a FastAPI dependency:
-
-        async def my_route(publisher: EventPublisher = Depends(get_event_publisher)):
-            await publisher.publish(UserCreatedEvent(payload={...}))
+    Usage:
+        publisher: EventPublisher = Depends(get_event_publisher)
+        await publisher.publish(UserCreatedEvent(payload={...}))
     """
 
     def __init__(self, redis_client: aioredis.Redis) -> None:
         self._redis = redis_client
 
-    async def publish(self, event: Event) -> None:
-        # Lazily import to avoid a hard dependency from event_bus → context_service
-        # in environments where context_service is not on the path.
-        try:
-            from context_service.service import ContextService
-            ctx = ContextService().get()
-            context_data = ctx.model_dump()
-        except ImportError:
-            context_data = {}
+    async def publish(self, event: Event, context_service=None) -> None:
+        """
+        Publish an event to the Redis channel.
 
-        # Embed context into the serialised message as a top-level field.
-        # We serialise manually so we can inject context without mutating the event.
+        ``context_service`` is an optional ContextService instance. When
+        provided (injected via the service layer), the current RequestContext
+        is embedded into the message. When absent, an empty context is used.
+        """
+        context_data: dict = {}
+        if context_service is not None:
+            try:
+                context_data = context_service.get().model_dump()
+            except Exception:
+                pass
+
         message_dict = json.loads(event.model_dump_json())
         message_dict["context"] = context_data
         message = json.dumps(message_dict)

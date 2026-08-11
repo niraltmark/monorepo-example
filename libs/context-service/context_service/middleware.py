@@ -2,28 +2,23 @@
 ContextMiddleware
 =================
 
-FastAPI/Starlette middleware that populates the ContextService at the start
-of every HTTP request and clears it when the response is sent.
+FastAPI/Starlette middleware that sets ``request.state.context`` at the
+start of every HTTP request.
 
 Flow
 ----
 1. Request arrives.
-2. Middleware extracts the Bearer token from the Authorization header.
-3. Token is decoded using the shared SECRET_KEY.
-4. A RequestContext is built from the token claims and stored via
-   ContextService().set() — which writes to the per-task ContextVar.
-5. The request proceeds through the rest of the stack (routes, services, repos).
-6. On the way out, the ContextVar token is reset to avoid context leaks.
+2. Middleware decodes the Bearer JWT from the Authorization header.
+3. Builds a ``RequestContext`` from the token claims.
+4. Stores it as ``request.state.context``.
+5. The request proceeds — route handlers, services, and repositories
+   can all read the context via ``ContextService.get()``.
 
-Anonymous requests (no token, or invalid token) receive an empty RequestContext
-with is_authenticated == False. Route handlers that require authentication
-should use Depends(require_authenticated) or Depends(ContextService) and
-check ctx.is_authenticated themselves.
+Anonymous requests (no token or invalid token) receive an empty
+``RequestContext`` with ``is_authenticated == False``.
 
 Usage
 -----
-In each FastAPI service's create_application():
-
     from context_service.middleware import ContextMiddleware
 
     app.add_middleware(ContextMiddleware, secret_key=settings.SECRET_KEY)
@@ -38,21 +33,17 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from context_service.models import RequestContext
-from context_service.service import ContextService
 
 logger = logging.getLogger(__name__)
 
 ALGORITHM = "HS256"
 
-# Module-level singleton used only by the middleware — avoids creating a new
-# ContextService() on every request just to access the class-level ContextVar.
-_context_service = ContextService()
-
 
 class ContextMiddleware(BaseHTTPMiddleware):
     """
-    Starlette middleware that resolves the current user from the JWT
-    and stores it in ContextService for the duration of the request.
+    Sets ``request.state.context`` from the JWT on every HTTP request.
+    No ContextVar, no token management — just a plain attribute on the
+    Starlette Request state object.
     """
 
     def __init__(self, app, secret_key: str) -> None:
@@ -60,19 +51,12 @@ class ContextMiddleware(BaseHTTPMiddleware):
         self._secret_key = secret_key
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        context = self._resolve_context(request)
-        token = _context_service.set(context)
-        try:
-            response = await call_next(request)
-        finally:
-            # Restore the previous ContextVar state (important in tests where
-            # the same event loop reuses tasks across requests).
-            ContextService._var.reset(token)
-        return response
+        request.state.context = self._resolve_context(request)
+        return await call_next(request)
 
     def _resolve_context(self, request: Request) -> RequestContext:
         """
-        Attempt to decode the Bearer token and build a RequestContext.
+        Decode the Bearer token and build a RequestContext.
         Returns an anonymous context on any failure.
         """
         auth_header = request.headers.get("Authorization", "")

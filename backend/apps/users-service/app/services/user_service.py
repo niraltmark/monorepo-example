@@ -10,6 +10,7 @@ from app.schemas.user import (
     UserRead,
     UserUpdate,
 )
+from context_service.service import ContextService
 from event_bus.dependencies import get_event_publisher
 from event_bus.publisher import EventPublisher
 from event_bus.schemas import UserCreatedEvent, UserDeletedEvent, UserUpdatedEvent
@@ -18,17 +19,19 @@ from event_bus.schemas import UserCreatedEvent, UserDeletedEvent, UserUpdatedEve
 class UserService:
     """
     Service layer for user management.
-    Publishes a domain event to Redis after every mutating operation.
-    FastAPI resolves all dependencies via Depends().
+    Publishes domain events after every mutating operation, embedding the
+    current RequestContext (via ContextService) into each event.
     """
 
     def __init__(
         self,
         user_repository: UserRepository = Depends(UserRepository),
         event_publisher: EventPublisher = Depends(get_event_publisher),
+        context_service: ContextService = Depends(ContextService),
     ) -> None:
         self._repository = user_repository
         self._publisher = event_publisher
+        self._context = context_service
 
     async def register(self, data: UserCreate) -> UserRead:
         if await self._repository.get_by_email(data.email):
@@ -38,7 +41,8 @@ class UserService:
         user = await self._repository.create(data)
         result = UserRead.model_validate(user)
         await self._publisher.publish(
-            UserCreatedEvent(payload={"user_id": result.id, "email": result.email, "username": result.username})
+            UserCreatedEvent(payload={"user_id": result.id, "email": result.email, "username": result.username}),
+            context_service=self._context,
         )
         return result
 
@@ -67,7 +71,8 @@ class UserService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
         result = UserRead.model_validate(user)
         await self._publisher.publish(
-            UserUpdatedEvent(payload={"user_id": result.id, "changes": data.model_dump(exclude_unset=True)})
+            UserUpdatedEvent(payload={"user_id": result.id, "changes": data.model_dump(exclude_unset=True)}),
+            context_service=self._context,
         )
         return result
 
@@ -80,7 +85,8 @@ class UserService:
         updated = await self._repository.update_password(user_id, hash_password(data.new_password))
         result = UserRead.model_validate(updated)
         await self._publisher.publish(
-            UserUpdatedEvent(payload={"user_id": result.id, "changes": {"password": "changed"}})
+            UserUpdatedEvent(payload={"user_id": result.id, "changes": {"password": "changed"}}),
+            context_service=self._context,
         )
         return result
 
@@ -88,4 +94,7 @@ class UserService:
         deleted = await self._repository.delete(user_id)
         if not deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-        await self._publisher.publish(UserDeletedEvent(payload={"user_id": user_id}))
+        await self._publisher.publish(
+            UserDeletedEvent(payload={"user_id": user_id}),
+            context_service=self._context,
+        )

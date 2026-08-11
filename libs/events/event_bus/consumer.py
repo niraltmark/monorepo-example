@@ -8,8 +8,8 @@ outside the normal HTTP request/response cycle. FastAPI's dependency
 injection is designed around requests, so there is no built-in way to
 call ``Depends(MyService)`` from a background task.
 
-The solution — "mini app" context
-----------------------------------
+The solution — synthetic Request with state
+-------------------------------------------
 We replicate what NestJS does with its microservice ``createMicroservice`` /
 ``app.init()`` pattern:
 
@@ -23,18 +23,18 @@ We replicate what NestJS does with its microservice ``createMicroservice`` /
        ) -> None:
            ...
 
-2. When a message arrives, EventConsumer calls ``solve_dependencies`` with
-   a synthetic Request-like scope so FastAPI resolves the full DI graph
-   (including DB sessions, repositories, services) just as it would for a
-   real HTTP request.
+2. When a message arrives, EventConsumer builds a synthetic ``Request``
+   object and calls FastAPI's ``solve_dependencies`` — the same function
+   used for every HTTP request.
 
 Context propagation
 -------------------
-Every published event carries a ``context`` field containing the serialised
-RequestContext of the user who triggered the original action. Before invoking
-each handler, EventConsumer restores that context via ContextService.set() so
-that ContextService.get() returns the correct user inside the handler — exactly
-as it does inside HTTP route handlers.
+Every published event carries a ``context`` field (set by EventPublisher
+from the originating HTTP request's ``request.state.context``). Before
+invoking each handler, EventConsumer deserialises that context and sets it
+as ``request.state.context`` on the synthetic Request. This means
+``ContextService.get()`` returns the correct user inside event handlers —
+exactly as it does inside HTTP route handlers — with no ContextVar needed.
 """
 
 import asyncio
@@ -47,6 +47,7 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI
 from fastapi.dependencies.utils import get_dependant, solve_dependencies
 from fastapi.requests import Request
+from starlette.datastructures import State
 from starlette.types import Scope
 
 from event_bus.publisher import EVENT_CHANNEL
@@ -59,7 +60,9 @@ class EventConsumer:
     """
     Subscribes to the Redis Pub/Sub channel and dispatches incoming events
     to registered handlers using FastAPI's dependency injection machinery.
-    Restores the RequestContext from the event payload before each dispatch.
+
+    Sets ``request.state.context`` on the synthetic Request so that
+    ``ContextService`` resolves the originating user's context inside handlers.
     """
 
     def __init__(self, app: FastAPI, redis_url: str) -> None:
@@ -111,7 +114,7 @@ class EventConsumer:
     async def _dispatch(self, raw: str) -> None:
         try:
             data = json.loads(raw)
-            # Extract and remove the context field before validating the Event
+            # Extract context before validating the Event model
             context_data: dict[str, Any] = data.pop("context", {})
             event = Event.model_validate(data)
         except Exception as exc:
@@ -138,56 +141,46 @@ class EventConsumer:
         self, handler: Callable, event: Event, context_data: dict[str, Any]
     ) -> None:
         """
-        Restore the RequestContext from the event payload, then resolve
-        the handler's dependencies using FastAPI's own DI machinery.
+        Build a synthetic Request with ``request.state.context`` populated
+        from the event payload, then resolve the handler's full DI graph
+        using FastAPI's ``solve_dependencies`` — exactly as it does for HTTP
+        route handlers.
 
-        Context restoration
-        -------------------
-        We call ContextService.set_from_dict(context_data) before invoking
-        the handler. Because each asyncio Task has its own ContextVar copy,
-        this is safe — the restored context is visible only within this
-        handler invocation and does not affect other concurrent tasks.
-        The ContextVar token is reset after the handler completes.
+        Because ContextService depends on ``Request`` via ``Depends(Request)``,
+        it will automatically read ``request.state.context`` from this synthetic
+        request, returning the originating user's identity to the handler.
         """
-        # ── 1. Restore RequestContext from the event payload ──────────────────
-        reset_token = None
+        # ── Build synthetic ASGI scope ────────────────────────────────────────
+        scope: Scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [],
+            "app": self._app,
+        }
+        request = Request(scope)
+
+        # ── Restore RequestContext onto request.state ─────────────────────────
+        # ContextService depends on Request and reads request.state.context,
+        # so setting it here makes the context available to all injected services.
         try:
-            from context_service.service import ContextService
-            reset_token = ContextService().set_from_dict(context_data)
-        except ImportError:
-            pass  # context_service not available — skip silently
+            from context_service.models import RequestContext
+            request.state.context = RequestContext.model_validate(context_data)
+        except (ImportError, Exception):
+            pass  # context_service not on path, or invalid data — skip silently
 
-        try:
-            # ── 2. Build a minimal ASGI scope for FastAPI's DI resolver ───────
-            scope: Scope = {
-                "type": "http",
-                "method": "GET",
-                "path": "/",
-                "query_string": b"",
-                "headers": [],
-                "app": self._app,
-            }
-            request = Request(scope)
+        # ── Resolve dependencies and invoke handler ───────────────────────────
+        dependant = get_dependant(path="/", call=handler)
+        solved = await solve_dependencies(
+            request=request,
+            dependant=dependant,
+            dependency_overrides_provider=self._app,
+        )
 
-            dependant = get_dependant(path="/", call=handler)
-            solved = await solve_dependencies(
-                request=request,
-                dependant=dependant,
-                dependency_overrides_provider=self._app,
-            )
+        kwargs = solved.values
+        # Inject `event` directly — it is not a Depends() dependency
+        if "event" in handler.__code__.co_varnames:
+            kwargs["event"] = event
 
-            kwargs = solved.values
-            # Inject `event` directly — it is not a Depends() dependency
-            if "event" in handler.__code__.co_varnames:
-                kwargs["event"] = event
-
-            await handler(**kwargs)
-
-        finally:
-            # ── 3. Restore the previous ContextVar state ──────────────────────
-            if reset_token is not None:
-                try:
-                    from context_service.service import ContextService
-                    ContextService._var.reset(reset_token)  # reset via class-level _var
-                except ImportError:
-                    pass
+        await handler(**kwargs)

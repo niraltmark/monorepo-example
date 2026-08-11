@@ -2,31 +2,29 @@ from fastapi import Depends, HTTPException, status
 
 from app.repositories.todo_repository import TodoRepository
 from app.schemas.todo import TodoCreate, TodoListResponse, TodoRead, TodoUpdate
+from context_service.service import ContextService
 from event_bus.dependencies import get_event_publisher
 from event_bus.publisher import EventPublisher
 from event_bus.schemas import TodoCreatedEvent, TodoDeletedEvent, TodoUpdatedEvent
 
 
 class TodoService:
-    """
-    Service layer for todo management.
-    Publishes a domain event to Redis after every mutating operation.
-    FastAPI resolves all dependencies via Depends().
-    """
-
     def __init__(
         self,
         todo_repository: TodoRepository = Depends(TodoRepository),
         event_publisher: EventPublisher = Depends(get_event_publisher),
+        context_service: ContextService = Depends(ContextService),
     ) -> None:
         self._repository = todo_repository
         self._publisher = event_publisher
+        self._context = context_service
 
     async def create_todo(self, data: TodoCreate) -> TodoRead:
         todo = await self._repository.create(data)
         result = TodoRead.model_validate(todo)
         await self._publisher.publish(
-            TodoCreatedEvent(payload={"todo_id": result.id, "user_id": result.user_id, "title": result.title})
+            TodoCreatedEvent(payload={"todo_id": result.id, "user_id": result.user_id, "title": result.title}),
+            context_service=self._context,
         )
         return result
 
@@ -53,7 +51,8 @@ class TodoService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo not found.")
         result = TodoRead.model_validate(todo)
         await self._publisher.publish(
-            TodoUpdatedEvent(payload={"todo_id": result.id, "changes": data.model_dump(exclude_unset=True)})
+            TodoUpdatedEvent(payload={"todo_id": result.id, "changes": data.model_dump(exclude_unset=True)}),
+            context_service=self._context,
         )
         return result
 
@@ -61,4 +60,7 @@ class TodoService:
         deleted = await self._repository.delete(todo_id)
         if not deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo not found.")
-        await self._publisher.publish(TodoDeletedEvent(payload={"todo_id": todo_id}))
+        await self._publisher.publish(
+            TodoDeletedEvent(payload={"todo_id": todo_id}),
+            context_service=self._context,
+        )
