@@ -1,6 +1,5 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.core.dependencies import get_current_user
 from app.schemas.user import (
     LoginRequest,
     TokenResponse,
@@ -10,6 +9,8 @@ from app.schemas.user import (
     UserUpdate,
 )
 from app.services.user_service import UserService
+from context_service.dependencies import require_authenticated
+from context_service.models import RequestContext
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -34,10 +35,11 @@ async def login(
 
 @router.get("/me", response_model=UserRead)
 async def get_me(
-    current_user: UserRead = Depends(get_current_user),
+    context: RequestContext = Depends(require_authenticated),
+    user_service: UserService = Depends(UserService),
 ) -> UserRead:
     """Return the currently authenticated user's profile."""
-    return current_user
+    return await user_service.get_user(context.user_id)
 
 
 @router.get("", response_model=list[UserRead])
@@ -74,9 +76,14 @@ async def change_password(
     user_id: str,
     data: UserPasswordUpdate,
     user_service: UserService = Depends(UserService),
-    current_user: UserRead = Depends(get_current_user),
+    context: RequestContext = Depends(require_authenticated),
 ) -> UserRead:
     """Change a user's password (requires authentication)."""
+    if context.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only change your own password.",
+        )
     return await user_service.change_password(user_id, data)
 
 

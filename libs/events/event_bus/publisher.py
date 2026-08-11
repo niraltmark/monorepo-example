@@ -15,20 +15,41 @@ class EventPublisher:
     """
     Publishes domain events to Redis Pub/Sub.
 
+    Automatically embeds the current RequestContext (from ContextService)
+    into every outgoing event under the ``context`` key. This allows the
+    EventConsumer on the receiving end to restore the context before
+    invoking handlers, so ContextService.get() returns the correct user
+    inside event handlers — exactly as it does inside HTTP route handlers.
+
     Designed to be used as a FastAPI dependency:
 
         async def my_route(publisher: EventPublisher = Depends(get_event_publisher)):
             await publisher.publish(UserCreatedEvent(payload={...}))
-
-    The publisher is a thin wrapper — it serialises the event to JSON and
-    publishes it to the shared Redis channel. It holds no state beyond the
-    Redis connection, so it is safe to share across requests.
     """
 
     def __init__(self, redis_client: aioredis.Redis) -> None:
         self._redis = redis_client
 
     async def publish(self, event: Event) -> None:
-        message = event.model_dump_json()
+        # Lazily import to avoid a hard dependency from event_bus → context_service
+        # in environments where context_service is not on the path.
+        try:
+            from context_service.service import ContextService
+            ctx = ContextService.get()
+            context_data = ctx.model_dump()
+        except ImportError:
+            context_data = {}
+
+        # Embed context into the serialised message as a top-level field.
+        # We serialise manually so we can inject context without mutating the event.
+        message_dict = json.loads(event.model_dump_json())
+        message_dict["context"] = context_data
+        message = json.dumps(message_dict)
+
         await self._redis.publish(EVENT_CHANNEL, message)
-        logger.debug("Published event: %s (id=%s)", event.event_type, event.event_id)
+        logger.debug(
+            "Published event: %s (id=%s, user_id=%s)",
+            event.event_type,
+            event.event_id,
+            context_data.get("user_id"),
+        )

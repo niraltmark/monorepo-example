@@ -6,20 +6,15 @@ The problem
 Redis Pub/Sub messages arrive on a background asyncio task, completely
 outside the normal HTTP request/response cycle. FastAPI's dependency
 injection is designed around requests, so there is no built-in way to
-call `Depends(MyService)` from a background task.
+call ``Depends(MyService)`` from a background task.
 
 The solution — "mini app" context
 ----------------------------------
-We replicate what NestJS does with its microservice `createMicroservice` /
-`app.init()` pattern:
+We replicate what NestJS does with its microservice ``createMicroservice`` /
+``app.init()`` pattern:
 
-1. At startup we create a *dependency injection context* by calling
-   `fastapi.concurrency.run_in_threadpool` — actually we use
-   `dependency_injector` pattern directly through FastAPI's own
-   `dependant` machinery via `fastapi.dependencies.utils.solve_dependencies`.
-
-2. Each @event_handler decorated function declares its dependencies
-   exactly like a route handler:
+1. Each @consumer.on decorated function declares its dependencies exactly
+   like a route handler:
 
        @consumer.on("user.created")
        async def handle_user_created(
@@ -28,13 +23,18 @@ We replicate what NestJS does with its microservice `createMicroservice` /
        ) -> None:
            ...
 
-3. When a message arrives, EventConsumer calls `solve_dependencies` with
-   a synthetic `Request`-like scope so FastAPI resolves the full DI graph
+2. When a message arrives, EventConsumer calls ``solve_dependencies`` with
+   a synthetic Request-like scope so FastAPI resolves the full DI graph
    (including DB sessions, repositories, services) just as it would for a
    real HTTP request.
 
-This means every event handler gets a fresh, properly scoped set of
-dependencies per message — identical to how a route handler works.
+Context propagation
+-------------------
+Every published event carries a ``context`` field containing the serialised
+RequestContext of the user who triggered the original action. Before invoking
+each handler, EventConsumer restores that context via ContextService.set() so
+that ContextService.get() returns the correct user inside the handler — exactly
+as it does inside HTTP route handlers.
 """
 
 import asyncio
@@ -47,7 +47,6 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI
 from fastapi.dependencies.utils import get_dependant, solve_dependencies
 from fastapi.requests import Request
-from starlette.datastructures import Headers
 from starlette.types import Scope
 
 from event_bus.publisher import EVENT_CHANNEL
@@ -60,28 +59,7 @@ class EventConsumer:
     """
     Subscribes to the Redis Pub/Sub channel and dispatches incoming events
     to registered handlers using FastAPI's dependency injection machinery.
-
-    Usage
-    -----
-    Instantiate once per service and register handlers:
-
-        consumer = EventConsumer(app=app, redis_url="redis://localhost:6379")
-
-        @consumer.on("user.created")
-        async def handle_user_created(
-            event: Event,
-            todo_service: TodoService = Depends(TodoService),
-        ) -> None:
-            # todo_service is fully injected — DB session, repository, all of it
-            await todo_service.handle_user_created(event)
-
-    Then start/stop it from the FastAPI lifespan:
-
-        @asynccontextmanager
-        async def lifespan(app: FastAPI):
-            await consumer.start()
-            yield
-            await consumer.stop()
+    Restores the RequestContext from the event payload before each dispatch.
     """
 
     def __init__(self, app: FastAPI, redis_url: str) -> None:
@@ -133,6 +111,8 @@ class EventConsumer:
     async def _dispatch(self, raw: str) -> None:
         try:
             data = json.loads(raw)
+            # Extract and remove the context field before validating the Event
+            context_data: dict[str, Any] = data.pop("context", {})
             event = Event.model_validate(data)
         except Exception as exc:
             logger.error("Failed to parse event: %s — %s", raw, exc)
@@ -144,7 +124,7 @@ class EventConsumer:
 
         for handler in handlers:
             try:
-                await self._invoke_with_di(handler, event)
+                await self._invoke_with_di(handler, event, context_data)
             except Exception as exc:
                 logger.error(
                     "Handler %s failed for event %s: %s",
@@ -154,39 +134,60 @@ class EventConsumer:
                     exc_info=True,
                 )
 
-    async def _invoke_with_di(self, handler: Callable, event: Event) -> None:
+    async def _invoke_with_di(
+        self, handler: Callable, event: Event, context_data: dict[str, Any]
+    ) -> None:
         """
-        Resolve the handler's dependencies using FastAPI's own DI machinery,
-        exactly as it does for HTTP route handlers.
+        Restore the RequestContext from the event payload, then resolve
+        the handler's dependencies using FastAPI's own DI machinery.
 
-        We build a synthetic ASGI scope so that FastAPI's dependency resolver
-        has a valid Request-like context to work with (needed for scoped
-        dependencies such as DB sessions).
+        Context restoration
+        -------------------
+        We call ContextService.set_from_dict(context_data) before invoking
+        the handler. Because each asyncio Task has its own ContextVar copy,
+        this is safe — the restored context is visible only within this
+        handler invocation and does not affect other concurrent tasks.
+        The ContextVar token is reset after the handler completes.
         """
-        # Build a minimal ASGI scope that satisfies FastAPI's dependency resolver
-        scope: Scope = {
-            "type": "http",
-            "method": "GET",
-            "path": "/",
-            "query_string": b"",
-            "headers": [],
-            "app": self._app,
-        }
-        request = Request(scope)
+        # ── 1. Restore RequestContext from the event payload ──────────────────
+        reset_token = None
+        try:
+            from context_service.service import ContextService
+            reset_token = ContextService.set_from_dict(context_data)
+        except ImportError:
+            pass  # context_service not available — skip silently
 
-        dependant = get_dependant(path="/", call=handler)
+        try:
+            # ── 2. Build a minimal ASGI scope for FastAPI's DI resolver ───────
+            scope: Scope = {
+                "type": "http",
+                "method": "GET",
+                "path": "/",
+                "query_string": b"",
+                "headers": [],
+                "app": self._app,
+            }
+            request = Request(scope)
 
-        # Inject the `event` parameter directly — it is not a Depends() dependency
-        dependency_cache: dict[Any, Any] = {}
-        solved = await solve_dependencies(
-            request=request,
-            dependant=dependant,
-            dependency_overrides_provider=self._app,
-        )
+            dependant = get_dependant(path="/", call=handler)
+            solved = await solve_dependencies(
+                request=request,
+                dependant=dependant,
+                dependency_overrides_provider=self._app,
+            )
 
-        kwargs = solved.values
-        # Manually inject `event` if the handler declares it as a plain parameter
-        if "event" in handler.__code__.co_varnames:
-            kwargs["event"] = event
+            kwargs = solved.values
+            # Inject `event` directly — it is not a Depends() dependency
+            if "event" in handler.__code__.co_varnames:
+                kwargs["event"] = event
 
-        await handler(**kwargs)
+            await handler(**kwargs)
+
+        finally:
+            # ── 3. Restore the previous ContextVar state ──────────────────────
+            if reset_token is not None:
+                try:
+                    from context_service.service import ContextService
+                    ContextService._var.reset(reset_token)
+                except ImportError:
+                    pass

@@ -1,0 +1,16 @@
+{
+  "name": "context-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "libs/context-service",
+  "tags": ["scope:shared", "type:library", "lang:python"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m ruff check context_service/",
+        "cwd": "libs/context-service"
+      }
+    }
+  }
+}

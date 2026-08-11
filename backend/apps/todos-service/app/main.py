@@ -8,15 +8,18 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.event_handlers import register_handlers
+from context_service.middleware import ContextMiddleware
 from event_bus.consumer import EventConsumer
 from event_bus.dependencies import init_event_bus
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # ── Database ──────────────────────────────────────────────────────────────
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    # ── Event bus ─────────────────────────────────────────────────────────────
     init_event_bus(app, settings.REDIS_URL)
 
     consumer = EventConsumer(app=app, redis_url=settings.REDIS_URL)
@@ -38,6 +41,10 @@ def create_application() -> FastAPI:
         redoc_url="/redoc",
         lifespan=lifespan,
     )
+
+    # ContextMiddleware must be added BEFORE CORSMiddleware so that the context
+    # is available to all downstream middleware and route handlers.
+    app.add_middleware(ContextMiddleware, secret_key=settings.SECRET_KEY)
 
     app.add_middleware(
         CORSMiddleware,
