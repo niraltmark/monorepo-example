@@ -10,7 +10,7 @@ from app.schemas.user import (
 )
 from app.services.user_service import UserService
 from context_service.dependencies import require_authenticated
-from context_service.models import RequestContext
+from context_service.service import ContextService
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -35,11 +35,11 @@ async def login(
 
 @router.get("/me", response_model=UserRead)
 async def get_me(
-    context: RequestContext = Depends(require_authenticated),
+    context_service: ContextService = Depends(require_authenticated),
     user_service: UserService = Depends(UserService),
 ) -> UserRead:
     """Return the currently authenticated user's profile."""
-    return await user_service.get_user(context.user_id)
+    return await user_service.get_user(context_service.get().user_id)
 
 
 @router.get("", response_model=list[UserRead])
@@ -76,10 +76,10 @@ async def change_password(
     user_id: str,
     data: UserPasswordUpdate,
     user_service: UserService = Depends(UserService),
-    context: RequestContext = Depends(require_authenticated),
+    context_service: ContextService = Depends(require_authenticated),
 ) -> UserRead:
     """Change a user's password (requires authentication)."""
-    if context.user_id != user_id:
+    if context_service.get().user_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only change your own password.",

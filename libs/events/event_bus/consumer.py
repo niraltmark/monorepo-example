@@ -153,7 +153,7 @@ class EventConsumer:
         reset_token = None
         try:
             from context_service.service import ContextService
-            reset_token = ContextService.set_from_dict(context_data)
+            reset_token = ContextService().set_from_dict(context_data)
         except ImportError:
             pass  # context_service not available — skip silently
 
@@ -188,6 +188,6 @@ class EventConsumer:
             if reset_token is not None:
                 try:
                     from context_service.service import ContextService
-                    ContextService._var.reset(reset_token)
+                    ContextService._var.reset(reset_token)  # reset via class-level _var
                 except ImportError:
                     pass

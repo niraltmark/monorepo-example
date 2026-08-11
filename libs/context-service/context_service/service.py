@@ -11,21 +11,23 @@ Python. Each asyncio Task (which maps to one HTTP request or one event message
 dispatch) gets its own copy of the variable. Setting the context in one task
 never bleeds into another — unlike a plain module-level global.
 
-Usage
------
-Anywhere in the call stack (middleware, service, repository, event handler):
+Dependency injection
+--------------------
+``ContextService`` is designed to be used directly with FastAPI's ``Depends``:
 
-    from context_service import ContextService
+    def __init__(self, context_service: ContextService = Depends(ContextService)):
+        self._context = context_service
 
-    # Read
-    ctx = ContextService.get()
-    print(ctx.user_id)
+    async def some_method(self) -> None:
+        ctx = self._context.get()
+        print(ctx.user_id)
 
-    # Write (typically done only in middleware or EventConsumer)
-    ContextService.set(RequestContext(user_id="abc", username="alice", email="alice@example.com"))
+FastAPI instantiates ``ContextService()`` by calling its ``__init__`` (which
+takes no arguments), so no factory function or Annotated wrapper is needed.
 
-    # Clear (called at the end of a request/message to avoid leaks)
-    ContextService.clear()
+The underlying ``ContextVar`` is module-level, so all instances share the same
+storage — ``ContextService()`` is effectively a zero-cost view over the same
+per-task slot regardless of how many times it is instantiated per request.
 """
 
 from contextvars import ContextVar, Token
@@ -43,46 +45,53 @@ _context_var: ContextVar[RequestContext] = ContextVar(
 
 class ContextService:
     """
-    Static service for reading and writing the current request context.
+    Injectable service for reading and writing the current request context.
 
-    All methods are class-level so no instantiation is needed — call
-    ``ContextService.get()`` from anywhere without dependency injection.
-    However, it is also injectable via ``Depends(ContextService)`` if you
-    prefer to keep the dependency explicit in your service constructors.
+    Instantiate via FastAPI's dependency injection:
+
+        class MyService:
+            def __init__(
+                self,
+                context_service: ContextService = Depends(ContextService),
+            ) -> None:
+                self._context = context_service
+
+        # In a route handler:
+        @router.get("/me")
+        async def get_me(
+            context_service: ContextService = Depends(ContextService),
+        ) -> dict:
+            ctx = context_service.get()
+            if not ctx.is_authenticated:
+                raise HTTPException(status_code=401)
+            return {"user_id": ctx.user_id}
     """
 
-    # Expose the underlying ContextVar for advanced use (e.g. copy_context)
+    # Expose the underlying ContextVar for the middleware and consumer
+    # which need to set/reset the token directly.
     _var: ClassVar[ContextVar[RequestContext]] = _context_var
 
-    @classmethod
-    def get(cls) -> RequestContext:
+    def get(self) -> RequestContext:
         """
         Return the current request context for this asyncio task.
         Returns an anonymous RequestContext if none has been set.
         """
-        return cls._var.get()
+        return self._var.get()
 
-    @classmethod
-    def set(cls, context: RequestContext) -> Token:
+    def set(self, context: RequestContext) -> Token:
         """
         Set the request context for the current asyncio task.
-        Returns the reset Token so callers can restore the previous value
-        if needed (useful in tests or nested context scopes).
+        Returns the reset Token so callers can restore the previous value.
         """
-        return cls._var.set(context)
+        return self._var.set(context)
 
-    @classmethod
-    def clear(cls) -> None:
-        """
-        Reset the context to the default anonymous state.
-        Call this at the end of a request or message dispatch.
-        """
-        cls._var.set(RequestContext())
+    def clear(self) -> None:
+        """Reset the context to the default anonymous state."""
+        self._var.set(RequestContext())
 
-    @classmethod
-    def set_from_dict(cls, data: dict) -> Token:
+    def set_from_dict(self, data: dict) -> Token:
         """
         Convenience method to restore context from a serialised dict
         (e.g. extracted from an incoming event payload).
         """
-        return cls.set(RequestContext.model_validate(data))
+        return self.set(RequestContext.model_validate(data))

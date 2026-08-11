@@ -35,7 +35,7 @@ class EventPublisher:
         # in environments where context_service is not on the path.
         try:
             from context_service.service import ContextService
-            ctx = ContextService.get()
+            ctx = ContextService().get()
             context_data = ctx.model_dump()
         except ImportError:
             context_data = {}

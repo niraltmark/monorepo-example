@@ -10,13 +10,15 @@ Flow
 1. Request arrives.
 2. Middleware extracts the Bearer token from the Authorization header.
 3. Token is decoded using the shared SECRET_KEY.
-4. A RequestContext is built from the token claims and stored via ContextService.set().
+4. A RequestContext is built from the token claims and stored via
+   ContextService().set() — which writes to the per-task ContextVar.
 5. The request proceeds through the rest of the stack (routes, services, repos).
-6. On the way out, ContextService.clear() is called to avoid context leaks.
+6. On the way out, the ContextVar token is reset to avoid context leaks.
 
 Anonymous requests (no token, or invalid token) receive an empty RequestContext
-with is_authenticated == False. It is the route handler's responsibility to
-reject unauthenticated requests if needed.
+with is_authenticated == False. Route handlers that require authentication
+should use Depends(require_authenticated) or Depends(ContextService) and
+check ctx.is_authenticated themselves.
 
 Usage
 -----
@@ -42,6 +44,10 @@ logger = logging.getLogger(__name__)
 
 ALGORITHM = "HS256"
 
+# Module-level singleton used only by the middleware — avoids creating a new
+# ContextService() on every request just to access the class-level ContextVar.
+_context_service = ContextService()
+
 
 class ContextMiddleware(BaseHTTPMiddleware):
     """
@@ -55,11 +61,11 @@ class ContextMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         context = self._resolve_context(request)
-        token = ContextService.set(context)
+        token = _context_service.set(context)
         try:
             response = await call_next(request)
         finally:
-            # Restore previous context (important for test scenarios where
+            # Restore the previous ContextVar state (important in tests where
             # the same event loop reuses tasks across requests).
             ContextService._var.reset(token)
         return response
