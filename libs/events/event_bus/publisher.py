@@ -7,7 +7,6 @@ from event_bus.schemas import Event
 
 logger = logging.getLogger(__name__)
 
-# Redis channel name — all services publish to and subscribe from this channel.
 EVENT_CHANNEL = "domain_events"
 
 

@@ -114,7 +114,6 @@ class EventConsumer:
     async def _dispatch(self, raw: str) -> None:
         try:
             data = json.loads(raw)
-            # Extract context before validating the Event model
             context_data: dict[str, Any] = data.pop("context", {})
             event = Event.model_validate(data)
         except Exception as exc:
@@ -150,7 +149,6 @@ class EventConsumer:
         it will automatically read ``request.state.context`` from this synthetic
         request, returning the originating user's identity to the handler.
         """
-        # ── Build synthetic ASGI scope ────────────────────────────────────────
         scope: Scope = {
             "type": "http",
             "method": "GET",
@@ -161,7 +159,6 @@ class EventConsumer:
         }
         request = Request(scope)
 
-        # ── Restore RequestContext onto request.state ─────────────────────────
         # ContextService depends on Request and reads request.state.context,
         # so setting it here makes the context available to all injected services.
         try:
@@ -170,7 +167,6 @@ class EventConsumer:
         except (ImportError, Exception):
             pass  # context_service not on path, or invalid data — skip silently
 
-        # ── Resolve dependencies and invoke handler ───────────────────────────
         dependant = get_dependant(path="/", call=handler)
         solved = await solve_dependencies(
             request=request,
@@ -179,7 +175,6 @@ class EventConsumer:
         )
 
         kwargs = solved.values
-        # Inject `event` directly — it is not a Depends() dependency
         if "event" in handler.__code__.co_varnames:
             kwargs["event"] = event
 

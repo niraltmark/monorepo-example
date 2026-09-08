@@ -9,13 +9,7 @@ from app.models.todo import Todo
 from app.repositories.base import AbstractRepository
 from app.schemas.todo import TodoCreate, TodoUpdate
 
-
 class TodoRepository(AbstractRepository[Todo, TodoCreate, TodoUpdate]):
-    """
-    Concrete repository for Todo persistence operations.
-    All database access is encapsulated here — services never touch SQLAlchemy directly.
-    FastAPI resolves the AsyncSession automatically via Depends(get_db).
-    """
 
     def __init__(self, session: AsyncSession = Depends(get_db)) -> None:
         super().__init__(session)
@@ -31,7 +25,6 @@ class TodoRepository(AbstractRepository[Todo, TodoCreate, TodoUpdate]):
     async def get_by_user_id(
         self, user_id: str, skip: int = 0, limit: int = 100
     ) -> tuple[list[Todo], int]:
-        """Return todos for a specific user along with the total count."""
         count_result = await self._session.execute(
             select(func.count()).select_from(Todo).where(Todo.user_id == user_id)
         )

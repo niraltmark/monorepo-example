@@ -17,7 +17,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create the todo_status enum type
     op.execute("CREATE TYPE todo_status AS ENUM ('pending', 'in_progress', 'done')")
 
     op.create_table(

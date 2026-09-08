@@ -5,12 +5,7 @@ ModelType = TypeVar("ModelType")
 CreateDataType = TypeVar("CreateDataType")
 UpdateDataType = TypeVar("UpdateDataType")
 
-
 class AbstractRepository(ABC, Generic[ModelType, CreateDataType, UpdateDataType]):
-    """
-    Abstract base repository defining the contract for all repositories.
-    Follows the Repository Pattern to decouple domain logic from persistence.
-    """
 
     @abstractmethod
     def get_by_id(self, entity_id: Any) -> ModelType | None:

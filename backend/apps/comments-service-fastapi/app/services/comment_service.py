@@ -7,7 +7,6 @@ from event_bus.dependencies import get_event_publisher
 from event_bus.publisher import EventPublisher
 from event_bus.schemas import CommentCreatedEvent, CommentDeletedEvent, CommentUpdatedEvent
 
-
 class CommentService:
     def __init__(
         self,

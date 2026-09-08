@@ -15,13 +15,7 @@ from event_bus.dependencies import get_event_publisher
 from event_bus.publisher import EventPublisher
 from event_bus.schemas import UserCreatedEvent, UserDeletedEvent, UserUpdatedEvent
 
-
 class UserService:
-    """
-    Service layer for user management.
-    Publishes domain events after every mutating operation, embedding the
-    current RequestContext (via ContextService) into each event.
-    """
 
     def __init__(
         self,

@@ -33,8 +33,6 @@ Inject via ``Depends(ContextService)`` anywhere in the DI graph:
 
     async def create_todo(self, data: TodoCreate) -> TodoRead:
         ctx = self._context.get()
-        print(ctx.user_id)   # set by ContextMiddleware for HTTP requests
-                              # set by EventConsumer for event handlers
 """
 
 from fastapi import Depends

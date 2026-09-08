@@ -24,7 +24,6 @@ class Event(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
-# ── User events ───────────────────────────────────────────────────────────────
 
 class UserCreatedEvent(Event):
     event_type: str = "user.created"
@@ -41,7 +40,6 @@ class UserDeletedEvent(Event):
     service: str = "users-service"
 
 
-# ── Todo events ───────────────────────────────────────────────────────────────
 
 class TodoCreatedEvent(Event):
     event_type: str = "todo.created"
@@ -58,7 +56,6 @@ class TodoDeletedEvent(Event):
     service: str = "todos-service"
 
 
-# ── Comment events ────────────────────────────────────────────────────────────
 
 class CommentCreatedEvent(Event):
     event_type: str = "comment.created"

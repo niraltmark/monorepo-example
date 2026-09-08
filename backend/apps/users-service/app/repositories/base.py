@@ -7,12 +7,7 @@ ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType")
 UpdateSchemaType = TypeVar("UpdateSchemaType")
 
-
 class AbstractRepository(ABC, Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
-    """
-    Abstract base repository defining the contract for all repositories.
-    Follows the Repository Pattern to decouple domain logic from persistence.
-    """
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session

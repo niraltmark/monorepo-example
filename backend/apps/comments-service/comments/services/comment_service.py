@@ -3,12 +3,7 @@ from rest_framework.exceptions import NotFound, ValidationError
 from comments.models import Comment
 from comments.repositories.comment_repository import CommentRepository
 
-
 class CommentService:
-    """
-    Service layer containing all business logic for comment management.
-    Depends on CommentRepository via constructor injection.
-    """
 
     def __init__(self, comment_repository: CommentRepository | None = None) -> None:
         self._repository = comment_repository or CommentRepository()
@@ -48,7 +43,6 @@ class CommentService:
         return comment
 
     def delete_comment(self, comment_id: str) -> None:
-        # Ensure the comment is active before issuing the soft-delete.
         self.get_comment(comment_id)
         if not self._repository.delete(comment_id):
             raise NotFound("Comment not found.")

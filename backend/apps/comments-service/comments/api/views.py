@@ -1,8 +1,3 @@
-"""Django REST Framework views for the comments microservice.
-
-The HTTP layer only validates and serializes HTTP data. All business behavior
-remains in CommentService, and all persistence remains in CommentRepository.
-"""
 
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
@@ -19,14 +14,11 @@ from comments.api.serializers import (
 )
 from comments.services.comment_service import CommentService
 
-
 class CommentServiceAPIView(GenericAPIView):
-    """Base DRF view that gives endpoint classes access to CommentService."""
 
     permission_classes = [AllowAny]
 
     def get_comment_service(self) -> CommentService:
-        """Construct the application service for this HTTP request."""
         return CommentService()
 
     def get_pagination_values(self, request: Request) -> tuple[int, int]:
@@ -47,9 +39,7 @@ class CommentServiceAPIView(GenericAPIView):
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
 class CommentListCreateView(CommentServiceAPIView):
-    """DRF endpoint for listing or creating comments."""
 
     serializer_class = CommentReadSerializer
 
@@ -86,9 +76,7 @@ class CommentListCreateView(CommentServiceAPIView):
             status=status.HTTP_201_CREATED,
         )
 
-
 class CommentDetailView(CommentServiceAPIView):
-    """DRF endpoint for reading, updating, or soft-deleting one comment."""
 
     serializer_class = CommentReadSerializer
 
@@ -114,9 +102,7 @@ class CommentDetailView(CommentServiceAPIView):
         self.get_comment_service().delete_comment(comment_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
 class CommentsByTodoView(CommentServiceAPIView):
-    """DRF endpoint that lists active comments for a todo ID."""
 
     serializer_class = CommentListResponseSerializer
 
@@ -127,9 +113,7 @@ class CommentsByTodoView(CommentServiceAPIView):
         )
         return self.list_response(comments, total, skip, limit)
 
-
 class CommentsByUserView(CommentServiceAPIView):
-    """DRF endpoint that lists active comments for a user ID."""
 
     serializer_class = CommentListResponseSerializer
 

@@ -9,12 +9,7 @@ from app.models.comment import Comment
 from app.repositories.base import AbstractRepository
 from app.schemas.comment import CommentCreate, CommentUpdate
 
-
 class CommentRepository(AbstractRepository[Comment, CommentCreate, CommentUpdate]):
-    """
-    Concrete repository for Comment persistence.
-    FastAPI resolves AsyncSession automatically via Depends(get_db).
-    """
 
     def __init__(self, session: AsyncSession = Depends(get_db)) -> None:
         super().__init__(session)
@@ -78,7 +73,6 @@ class CommentRepository(AbstractRepository[Comment, CommentCreate, CommentUpdate
         return comment
 
     async def delete(self, entity_id: str) -> bool:
-        """Soft-delete by setting status to deleted."""
         comment = await self.get_by_id(entity_id)
         if not comment:
             return False

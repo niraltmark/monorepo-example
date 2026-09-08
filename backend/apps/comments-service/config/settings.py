@@ -30,7 +30,6 @@ ROOT_URLCONF = "config.urls"
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# ── Database ──────────────────────────────────────────────────────────────────
 # Each service owns its own database — no cross-service foreign keys.
 DATABASES = {
     "default": env.db("DATABASE_URL", default="sqlite:///./comments.db")
@@ -38,7 +37,6 @@ DATABASES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# ── REST Framework ────────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
@@ -46,7 +44,6 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 100,
 }
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = env.list(
     "ALLOWED_ORIGINS",
     default=["http://localhost:5173", "http://localhost:3000"],

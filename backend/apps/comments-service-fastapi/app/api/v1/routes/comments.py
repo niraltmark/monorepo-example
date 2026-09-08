@@ -5,15 +5,12 @@ from app.services.comment_service import CommentService
 
 router = APIRouter(prefix="/comments", tags=["comments"])
 
-
 @router.post("", response_model=CommentRead, status_code=status.HTTP_201_CREATED)
 async def create_comment(
     data: CommentCreate,
     comment_service: CommentService = Depends(CommentService),
 ) -> CommentRead:
-    """Create a new comment."""
     return await comment_service.create_comment(data)
-
 
 @router.get("", response_model=list[CommentRead])
 async def list_comments(
@@ -21,9 +18,7 @@ async def list_comments(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ) -> list[CommentRead]:
-    """List all comments (paginated)."""
     return await comment_service.list_comments(skip=skip, limit=limit)
-
 
 @router.get("/todo/{todo_id}", response_model=CommentListResponse)
 async def list_comments_by_todo(
@@ -32,9 +27,7 @@ async def list_comments_by_todo(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ) -> CommentListResponse:
-    """List all comments for a specific todo."""
     return await comment_service.list_comments_by_todo(todo_id, skip=skip, limit=limit)
-
 
 @router.get("/user/{user_id}", response_model=CommentListResponse)
 async def list_comments_by_user(
@@ -43,18 +36,14 @@ async def list_comments_by_user(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ) -> CommentListResponse:
-    """List all comments by a specific user."""
     return await comment_service.list_comments_by_user(user_id, skip=skip, limit=limit)
-
 
 @router.get("/{comment_id}", response_model=CommentRead)
 async def get_comment(
     comment_id: str,
     comment_service: CommentService = Depends(CommentService),
 ) -> CommentRead:
-    """Retrieve a comment by its ID."""
     return await comment_service.get_comment(comment_id)
-
 
 @router.patch("/{comment_id}", response_model=CommentRead)
 async def update_comment(
@@ -62,14 +51,11 @@ async def update_comment(
     data: CommentUpdate,
     comment_service: CommentService = Depends(CommentService),
 ) -> CommentRead:
-    """Update a comment's body."""
     return await comment_service.update_comment(comment_id, data)
-
 
 @router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_comment(
     comment_id: str,
     comment_service: CommentService = Depends(CommentService),
 ) -> None:
-    """Soft-delete a comment."""
     await comment_service.delete_comment(comment_id)
