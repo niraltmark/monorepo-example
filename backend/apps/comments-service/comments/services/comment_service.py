@@ -17,7 +17,7 @@ class CommentService:
         if not body.strip():
             raise ValidationError({"body": "Comment body cannot be empty."})
         return self._repository.create(
-            {"user_id": user_id, "todo_id": todo_id, "body": body.strip()}
+            {"user_id": str(user_id), "todo_id": str(todo_id), "body": body.strip()}
         )
 
     def get_comment(self, comment_id: str) -> Comment:
@@ -25,6 +25,9 @@ class CommentService:
         if not comment or comment.status == Comment.Status.DELETED:
             raise NotFound("Comment not found.")
         return comment
+
+    def list_comments(self, skip: int = 0, limit: int = 100) -> tuple[list[Comment], int]:
+        return self._repository.get_all_with_total(skip=skip, limit=limit)
 
     def list_comments_by_todo(
         self, todo_id: str, skip: int = 0, limit: int = 100
@@ -40,11 +43,12 @@ class CommentService:
         if not body.strip():
             raise ValidationError({"body": "Comment body cannot be empty."})
         comment = self._repository.update(comment_id, {"body": body.strip()})
-        if not comment:
+        if not comment or comment.status == Comment.Status.DELETED:
             raise NotFound("Comment not found.")
         return comment
 
     def delete_comment(self, comment_id: str) -> None:
-        deleted = self._repository.delete(comment_id)
-        if not deleted:
+        # Ensure the comment is active before issuing the soft-delete.
+        self.get_comment(comment_id)
+        if not self._repository.delete(comment_id):
             raise NotFound("Comment not found.")

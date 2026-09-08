@@ -3,7 +3,11 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "sourceRoot": "backend/apps/comments-service",
-  "tags": ["scope:backend", "type:service", "lang:python"],
+  "tags": [
+    "scope:backend",
+    "type:service",
+    "lang:python"
+  ],
   "targets": {
     "serve": {
       "executor": "nx:run-commands",
@@ -23,13 +27,6 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "python manage.py makemigrations",
-        "cwd": "backend/apps/comments-service"
-      }
-    },
-    "test": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "python -m pytest tests/ -v --cov=comments --cov-report=term-missing",
         "cwd": "backend/apps/comments-service"
       }
     },

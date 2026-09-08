@@ -1,5 +1,4 @@
 from typing import Any
-from uuid import UUID
 
 from comments.models import Comment
 from comments.repositories.base import AbstractRepository
@@ -21,23 +20,32 @@ class CommentRepository(AbstractRepository[Comment, dict, dict]):
     def get_all(self, skip: int = 0, limit: int = 100) -> list[Comment]:
         return list(Comment.objects.all()[skip : skip + limit])
 
-    def get_by_todo_id(self, todo_id: str, skip: int = 0, limit: int = 100) -> tuple[list[Comment], int]:
-        qs = Comment.objects.filter(todo_id=todo_id, status=Comment.Status.ACTIVE)
-        total = qs.count()
-        return list(qs[skip : skip + limit]), total
+    def get_all_with_total(self, skip: int = 0, limit: int = 100) -> tuple[list[Comment], int]:
+        """Return paginated comments and the total unpaginated count."""
+        queryset = Comment.objects.filter(status=Comment.Status.ACTIVE)
+        total = queryset.count()
+        return list(queryset[skip : skip + limit]), total
 
-    def get_by_user_id(self, user_id: str, skip: int = 0, limit: int = 100) -> tuple[list[Comment], int]:
-        qs = Comment.objects.filter(user_id=user_id, status=Comment.Status.ACTIVE)
-        total = qs.count()
-        return list(qs[skip : skip + limit]), total
+    def get_by_todo_id(
+        self, todo_id: str, skip: int = 0, limit: int = 100
+    ) -> tuple[list[Comment], int]:
+        queryset = Comment.objects.filter(todo_id=todo_id, status=Comment.Status.ACTIVE)
+        total = queryset.count()
+        return list(queryset[skip : skip + limit]), total
+
+    def get_by_user_id(
+        self, user_id: str, skip: int = 0, limit: int = 100
+    ) -> tuple[list[Comment], int]:
+        queryset = Comment.objects.filter(user_id=user_id, status=Comment.Status.ACTIVE)
+        total = queryset.count()
+        return list(queryset[skip : skip + limit]), total
 
     def create(self, data: dict) -> Comment:
-        comment = Comment.objects.create(
+        return Comment.objects.create(
             user_id=data["user_id"],
             todo_id=data["todo_id"],
             body=data["body"],
         )
-        return comment
 
     def update(self, entity_id: Any, data: dict) -> Comment | None:
         comment = self.get_by_id(entity_id)
@@ -54,5 +62,5 @@ class CommentRepository(AbstractRepository[Comment, dict, dict]):
         if not comment:
             return False
         comment.status = Comment.Status.DELETED
-        comment.save()
+        comment.save(update_fields=["status", "updated_at"])
         return True

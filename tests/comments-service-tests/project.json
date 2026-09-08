@@ -3,13 +3,19 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "library",
   "sourceRoot": "tests/comments-service-tests",
-  "tags": ["scope:backend", "type:test", "lang:python"],
-  "implicitDependencies": ["comments-service"],
+  "tags": [
+    "scope:backend",
+    "type:test",
+    "lang:python"
+  ],
+  "implicitDependencies": [
+    "comments-service"
+  ],
   "targets": {
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python -m pytest unit/ integration/ -v --cov=../../backend/apps/comments-service/comments --cov-report=term-missing",
+        "command": "PYTHONPATH=../../backend/apps/comments-service python -m pytest unit/ integration/ -v --cov=../../backend/apps/comments-service/comments --cov-report=term-missing",
         "cwd": "tests/comments-service-tests"
       }
     },
