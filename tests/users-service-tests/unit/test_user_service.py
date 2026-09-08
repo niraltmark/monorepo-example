@@ -4,8 +4,10 @@ import pytest
 
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate
 from app.services.user_service import UserService
+from context_service.models import RequestContext
+from event_bus.publisher import EventPublisher
 
 
 def make_user(**kwargs) -> User:
@@ -24,55 +26,83 @@ def make_user(**kwargs) -> User:
     )
     defaults.update(kwargs)
     user = MagicMock(spec=User)
-    for k, v in defaults.items():
-        setattr(user, k, v)
+    for key, value in defaults.items():
+        setattr(user, key, value)
     return user
 
 
 @pytest.fixture
-def mock_repo() -> AsyncMock:
+def mock_repository() -> AsyncMock:
     return AsyncMock(spec=UserRepository)
 
 
 @pytest.fixture
-def service(mock_repo: AsyncMock) -> UserService:
-    return UserService(mock_repo)
+def mock_event_publisher() -> AsyncMock:
+    return AsyncMock(spec=EventPublisher)
+
+
+@pytest.fixture
+def mock_context_service() -> MagicMock:
+    context_service = MagicMock()
+    context_service.get.return_value = RequestContext()
+    return context_service
+
+
+@pytest.fixture
+def user_service(
+    mock_repository: AsyncMock,
+    mock_event_publisher: AsyncMock,
+    mock_context_service: MagicMock,
+) -> UserService:
+    return UserService(
+        user_repository=mock_repository,
+        event_publisher=mock_event_publisher,
+        context_service=mock_context_service,
+    )
 
 
 @pytest.mark.asyncio
-async def test_register_success(service: UserService, mock_repo: AsyncMock) -> None:
-    mock_repo.get_by_email.return_value = None
-    mock_repo.get_by_username.return_value = None
-    user = make_user()
-    mock_repo.create.return_value = user
+async def test_register_success(
+    user_service: UserService,
+    mock_repository: AsyncMock,
+    mock_event_publisher: AsyncMock,
+) -> None:
+    mock_repository.get_by_email.return_value = None
+    mock_repository.get_by_username.return_value = None
+    mock_repository.create.return_value = make_user()
 
     data = UserCreate(email="alice@example.com", username="alice", password="SecurePass1")
-    result = await service.register(data)
+    result = await user_service.register(data)
 
     assert result.email == "alice@example.com"
-    mock_repo.create.assert_awaited_once()
+    mock_repository.create.assert_awaited_once()
+    mock_event_publisher.publish.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_register_duplicate_email(service: UserService, mock_repo: AsyncMock) -> None:
+async def test_register_duplicate_email(
+    user_service: UserService, mock_repository: AsyncMock
+) -> None:
     from fastapi import HTTPException
 
-    mock_repo.get_by_email.return_value = make_user()
+    mock_repository.get_by_email.return_value = make_user()
 
     data = UserCreate(email="alice@example.com", username="alice", password="SecurePass1")
     with pytest.raises(HTTPException) as exc_info:
-        await service.register(data)
+        await user_service.register(data)
 
     assert exc_info.value.status_code == 409
 
 
 @pytest.mark.asyncio
-async def test_get_user_not_found(service: UserService, mock_repo: AsyncMock) -> None:
+async def test_get_user_not_found(
+    user_service: UserService, mock_repository: AsyncMock
+) -> None:
     from fastapi import HTTPException
 
-    mock_repo.get_by_id.return_value = None
+    mock_repository.get_by_id.return_value = None
 
     with pytest.raises(HTTPException) as exc_info:
-        await service.get_user("nonexistent-id")
+        await user_service.get_user("nonexistent-id")
 
     assert exc_info.value.status_code == 404
