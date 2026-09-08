@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from comments.comment_model import Comment
+from comments.comment_model import CommentModel
 
 class PaginationQuerySerializer(serializers.Serializer):
 
@@ -10,7 +10,7 @@ class PaginationQuerySerializer(serializers.Serializer):
 class CommentReadSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = Comment
+        model = CommentModel
         fields = [
             "id",
             "user_id",
@@ -31,7 +31,7 @@ class CommentCreateSerializer(serializers.Serializer):
     def validate_body(self, value: str) -> str:
         value = value.strip()
         if not value:
-            raise serializers.ValidationError("Comment body cannot be empty.")
+            raise serializers.ValidationError("CommentModel body cannot be empty.")
         return value
 
 class CommentUpdateSerializer(serializers.Serializer):
@@ -41,7 +41,7 @@ class CommentUpdateSerializer(serializers.Serializer):
     def validate_body(self, value: str) -> str:
         value = value.strip()
         if not value:
-            raise serializers.ValidationError("Comment body cannot be empty.")
+            raise serializers.ValidationError("CommentModel body cannot be empty.")
         return value
 
 class CommentListResponseSerializer(serializers.Serializer):

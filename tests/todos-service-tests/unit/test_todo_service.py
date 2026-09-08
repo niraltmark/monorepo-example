@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.models.todo_model import Todo
+from app.models.todo_model import TodoModel
 from app.repositories.todo_repository import TodoRepository
 from app.schemas.todo_schema import TodoCreate, TodoStatus
 from app.services.todo_service import TodoService
@@ -10,7 +10,7 @@ from context_service.models import RequestContext
 from event_bus.publisher import EventPublisher
 
 
-def make_todo(**kwargs) -> Todo:
+def make_todo(**kwargs) -> TodoModel:
     from datetime import datetime, timezone
 
     defaults = dict(
@@ -25,7 +25,7 @@ def make_todo(**kwargs) -> Todo:
         updated_at=datetime.now(timezone.utc),
     )
     defaults.update(kwargs)
-    todo = MagicMock(spec=Todo)
+    todo = MagicMock(spec=TodoModel)
     for key, value in defaults.items():
         setattr(todo, key, value)
     return todo

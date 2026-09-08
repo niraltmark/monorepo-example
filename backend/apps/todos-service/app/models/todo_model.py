@@ -13,7 +13,7 @@ class TodoStatus(str):
     DONE = "done"
 
 
-class Todo(Base):
+class TodoModel(Base):
     """
     Todo model.
     - user_id: references a User in the users-service by UUID string.

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.session import Base
 
 
-class User(Base):
+class UserModel(Base):
     """
     User model. No foreign keys — other services reference users by user_id (UUID string).
     """

@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.test import APIClient
 
-from comments.comment_model import Comment
+from comments.comment_model import CommentModel
 
 
 @pytest.fixture
@@ -49,12 +49,12 @@ def test_create_comment_rejects_invalid_uuid_and_blank_body(api_client: APIClien
 def test_list_response_uses_drf_validation_and_pagination_envelope(
     api_client: APIClient,
 ) -> None:
-    Comment.objects.create(
+    CommentModel.objects.create(
         user_id="550e8400-e29b-41d4-a716-446655440000",
         todo_id="6ba7b810-9dad-11d1-80b4-00c04fd430c8",
         body="First",
     )
-    Comment.objects.create(
+    CommentModel.objects.create(
         user_id="550e8400-e29b-41d4-a716-446655440000",
         todo_id="6ba7b810-9dad-11d1-80b4-00c04fd430c8",
         body="Second",
@@ -71,7 +71,7 @@ def test_list_response_uses_drf_validation_and_pagination_envelope(
 
 @pytest.mark.django_db
 def test_soft_deleted_comment_is_not_retrievable(api_client: APIClient) -> None:
-    comment = Comment.objects.create(
+    comment = CommentModel.objects.create(
         user_id="550e8400-e29b-41d4-a716-446655440000",
         todo_id="6ba7b810-9dad-11d1-80b4-00c04fd430c8",
         body="Will be deleted",

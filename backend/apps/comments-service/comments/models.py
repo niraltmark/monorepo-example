@@ -1,3 +1,3 @@
-from comments.comment_model import Comment
+from comments.comment_model import CommentModel
 
-__all__ = ["Comment"]
+__all__ = ["CommentModel"]

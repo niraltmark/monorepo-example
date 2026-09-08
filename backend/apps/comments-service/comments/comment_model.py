@@ -3,7 +3,7 @@ import uuid
 from django.db import models
 
 
-class Comment(models.Model):
+class CommentModel(models.Model):
     """
     Comment model.
 
@@ -35,7 +35,8 @@ class Comment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = "comments_comment"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"Comment({self.id}) by user={self.user_id} on todo={self.todo_id}"
+        return f"CommentModel({self.id}) by user={self.user_id} on todo={self.todo_id}"

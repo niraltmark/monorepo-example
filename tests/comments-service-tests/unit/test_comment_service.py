@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 from rest_framework.exceptions import NotFound, ValidationError
 
-from comments.comment_model import Comment
+from comments.comment_model import CommentModel
 from comments.repositories.comment_repository import CommentRepository
 from comments.services.comment_service import CommentService
 
@@ -16,12 +16,12 @@ def make_comment(**kwargs) -> MagicMock:
         user_id="user-uuid",
         todo_id="todo-uuid",
         body="This is a comment",
-        status=Comment.Status.ACTIVE,
+        status=CommentModel.Status.ACTIVE,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
     defaults.update(kwargs)
-    comment = MagicMock(spec=Comment)
+    comment = MagicMock(spec=CommentModel)
     for key, value in defaults.items():
         setattr(comment, key, value)
     return comment

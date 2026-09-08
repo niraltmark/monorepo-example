@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.session import Base
 
 
-class Comment(Base):
+class CommentModel(Base):
     """
     Comment model.
 

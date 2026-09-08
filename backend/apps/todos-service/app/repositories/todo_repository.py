@@ -5,38 +5,38 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.models.todo_model import Todo
+from app.models.todo_model import TodoModel
 from app.repositories.base import AbstractRepository
 from app.schemas.todo_schema import TodoCreate, TodoUpdate
 
-class TodoRepository(AbstractRepository[Todo, TodoCreate, TodoUpdate]):
+class TodoRepository(AbstractRepository[TodoModel, TodoCreate, TodoUpdate]):
 
     def __init__(self, session: AsyncSession = Depends(get_db)) -> None:
         super().__init__(session)
 
-    async def get_by_id(self, entity_id: str) -> Todo | None:
-        result = await self._session.execute(select(Todo).where(Todo.id == entity_id))
+    async def get_by_id(self, entity_id: str) -> TodoModel | None:
+        result = await self._session.execute(select(TodoModel).where(TodoModel.id == entity_id))
         return result.scalar_one_or_none()
 
-    async def get_all(self, skip: int = 0, limit: int = 100) -> list[Todo]:
-        result = await self._session.execute(select(Todo).offset(skip).limit(limit))
+    async def get_all(self, skip: int = 0, limit: int = 100) -> list[TodoModel]:
+        result = await self._session.execute(select(TodoModel).offset(skip).limit(limit))
         return list(result.scalars().all())
 
     async def get_by_user_id(
         self, user_id: str, skip: int = 0, limit: int = 100
-    ) -> tuple[list[Todo], int]:
+    ) -> tuple[list[TodoModel], int]:
         count_result = await self._session.execute(
-            select(func.count()).select_from(Todo).where(Todo.user_id == user_id)
+            select(func.count()).select_from(TodoModel).where(TodoModel.user_id == user_id)
         )
         total = count_result.scalar_one()
 
         result = await self._session.execute(
-            select(Todo).where(Todo.user_id == user_id).offset(skip).limit(limit)
+            select(TodoModel).where(TodoModel.user_id == user_id).offset(skip).limit(limit)
         )
         return list(result.scalars().all()), total
 
-    async def create(self, data: TodoCreate) -> Todo:
-        todo = Todo(
+    async def create(self, data: TodoCreate) -> TodoModel:
+        todo = TodoModel(
             id=str(uuid.uuid4()),
             title=data.title,
             description=data.description,
@@ -49,7 +49,7 @@ class TodoRepository(AbstractRepository[Todo, TodoCreate, TodoUpdate]):
         await self._session.refresh(todo)
         return todo
 
-    async def update(self, entity_id: str, data: TodoUpdate) -> Todo | None:
+    async def update(self, entity_id: str, data: TodoUpdate) -> TodoModel | None:
         todo = await self.get_by_id(entity_id)
         if not todo:
             return None

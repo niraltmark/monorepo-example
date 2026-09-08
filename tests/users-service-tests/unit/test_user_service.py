@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.models.user_model import User
+from app.models.user_model import UserModel
 from app.repositories.user_repository import UserRepository
 from app.schemas.user_schema import UserCreate
 from app.services.user_service import UserService
@@ -10,7 +10,7 @@ from context_service.models import RequestContext
 from event_bus.publisher import EventPublisher
 
 
-def make_user(**kwargs) -> User:
+def make_user(**kwargs) -> UserModel:
     from datetime import datetime, timezone
 
     defaults = dict(
@@ -25,7 +25,7 @@ def make_user(**kwargs) -> User:
         updated_at=datetime.now(timezone.utc),
     )
     defaults.update(kwargs)
-    user = MagicMock(spec=User)
+    user = MagicMock(spec=UserModel)
     for key, value in defaults.items():
         setattr(user, key, value)
     return user

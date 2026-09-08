@@ -5,30 +5,30 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.models.comment_model import Comment
+from app.models.comment_model import CommentModel
 from app.repositories.base import AbstractRepository
 from app.schemas.comment_schema import CommentCreate, CommentUpdate
 
-class CommentRepository(AbstractRepository[Comment, CommentCreate, CommentUpdate]):
+class CommentRepository(AbstractRepository[CommentModel, CommentCreate, CommentUpdate]):
 
     def __init__(self, session: AsyncSession = Depends(get_db)) -> None:
         super().__init__(session)
 
-    async def get_by_id(self, entity_id: str) -> Comment | None:
+    async def get_by_id(self, entity_id: str) -> CommentModel | None:
         result = await self._session.execute(
-            select(Comment).where(Comment.id == entity_id)
+            select(CommentModel).where(CommentModel.id == entity_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_all(self, skip: int = 0, limit: int = 100) -> list[Comment]:
-        result = await self._session.execute(select(Comment).offset(skip).limit(limit))
+    async def get_all(self, skip: int = 0, limit: int = 100) -> list[CommentModel]:
+        result = await self._session.execute(select(CommentModel).offset(skip).limit(limit))
         return list(result.scalars().all())
 
     async def get_by_todo_id(
         self, todo_id: str, skip: int = 0, limit: int = 100
-    ) -> tuple[list[Comment], int]:
-        base_query = select(Comment).where(
-            Comment.todo_id == todo_id, Comment.status == "active"
+    ) -> tuple[list[CommentModel], int]:
+        base_query = select(CommentModel).where(
+            CommentModel.todo_id == todo_id, CommentModel.status == "active"
         )
         count_result = await self._session.execute(
             select(func.count()).select_from(base_query.subquery())
@@ -39,9 +39,9 @@ class CommentRepository(AbstractRepository[Comment, CommentCreate, CommentUpdate
 
     async def get_by_user_id(
         self, user_id: str, skip: int = 0, limit: int = 100
-    ) -> tuple[list[Comment], int]:
-        base_query = select(Comment).where(
-            Comment.user_id == user_id, Comment.status == "active"
+    ) -> tuple[list[CommentModel], int]:
+        base_query = select(CommentModel).where(
+            CommentModel.user_id == user_id, CommentModel.status == "active"
         )
         count_result = await self._session.execute(
             select(func.count()).select_from(base_query.subquery())
@@ -50,8 +50,8 @@ class CommentRepository(AbstractRepository[Comment, CommentCreate, CommentUpdate
         result = await self._session.execute(base_query.offset(skip).limit(limit))
         return list(result.scalars().all()), total
 
-    async def create(self, data: CommentCreate) -> Comment:
-        comment = Comment(
+    async def create(self, data: CommentCreate) -> CommentModel:
+        comment = CommentModel(
             id=str(uuid.uuid4()),
             user_id=data.user_id,
             todo_id=data.todo_id,
@@ -62,7 +62,7 @@ class CommentRepository(AbstractRepository[Comment, CommentCreate, CommentUpdate
         await self._session.refresh(comment)
         return comment
 
-    async def update(self, entity_id: str, data: CommentUpdate) -> Comment | None:
+    async def update(self, entity_id: str, data: CommentUpdate) -> CommentModel | None:
         comment = await self.get_by_id(entity_id)
         if not comment:
             return None

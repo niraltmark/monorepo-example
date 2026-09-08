@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import HTTPException
 
-from app.models.comment_model import Comment
+from app.models.comment_model import CommentModel
 from app.repositories.comment_repository import CommentRepository
 from app.schemas.comment_schema import CommentCreate
 from app.services.comment_service import CommentService
@@ -24,7 +24,7 @@ def make_comment(**kwargs) -> MagicMock:
         updated_at=datetime.now(timezone.utc),
     )
     defaults.update(kwargs)
-    comment = MagicMock(spec=Comment)
+    comment = MagicMock(spec=CommentModel)
     for key, value in defaults.items():
         setattr(comment, key, value)
     return comment

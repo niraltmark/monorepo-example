@@ -1,46 +1,46 @@
 from typing import Any
 
-from comments.comment_model import Comment
+from comments.comment_model import CommentModel
 from comments.repositories.base import AbstractRepository
 
-class CommentRepository(AbstractRepository[Comment, dict, dict]):
+class CommentRepository(AbstractRepository[CommentModel, dict, dict]):
 
-    def get_by_id(self, entity_id: Any) -> Comment | None:
+    def get_by_id(self, entity_id: Any) -> CommentModel | None:
         try:
-            return Comment.objects.get(pk=entity_id)
-        except Comment.DoesNotExist:
+            return CommentModel.objects.get(pk=entity_id)
+        except CommentModel.DoesNotExist:
             return None
 
-    def get_all(self, skip: int = 0, limit: int = 100) -> list[Comment]:
-        return list(Comment.objects.all()[skip : skip + limit])
+    def get_all(self, skip: int = 0, limit: int = 100) -> list[CommentModel]:
+        return list(CommentModel.objects.all()[skip : skip + limit])
 
-    def get_all_with_total(self, skip: int = 0, limit: int = 100) -> tuple[list[Comment], int]:
-        queryset = Comment.objects.filter(status=Comment.Status.ACTIVE)
+    def get_all_with_total(self, skip: int = 0, limit: int = 100) -> tuple[list[CommentModel], int]:
+        queryset = CommentModel.objects.filter(status=CommentModel.Status.ACTIVE)
         total = queryset.count()
         return list(queryset[skip : skip + limit]), total
 
     def get_by_todo_id(
         self, todo_id: str, skip: int = 0, limit: int = 100
-    ) -> tuple[list[Comment], int]:
-        queryset = Comment.objects.filter(todo_id=todo_id, status=Comment.Status.ACTIVE)
+    ) -> tuple[list[CommentModel], int]:
+        queryset = CommentModel.objects.filter(todo_id=todo_id, status=CommentModel.Status.ACTIVE)
         total = queryset.count()
         return list(queryset[skip : skip + limit]), total
 
     def get_by_user_id(
         self, user_id: str, skip: int = 0, limit: int = 100
-    ) -> tuple[list[Comment], int]:
-        queryset = Comment.objects.filter(user_id=user_id, status=Comment.Status.ACTIVE)
+    ) -> tuple[list[CommentModel], int]:
+        queryset = CommentModel.objects.filter(user_id=user_id, status=CommentModel.Status.ACTIVE)
         total = queryset.count()
         return list(queryset[skip : skip + limit]), total
 
-    def create(self, data: dict) -> Comment:
-        return Comment.objects.create(
+    def create(self, data: dict) -> CommentModel:
+        return CommentModel.objects.create(
             user_id=data["user_id"],
             todo_id=data["todo_id"],
             body=data["body"],
         )
 
-    def update(self, entity_id: Any, data: dict) -> Comment | None:
+    def update(self, entity_id: Any, data: dict) -> CommentModel | None:
         comment = self.get_by_id(entity_id)
         if not comment:
             return None
@@ -53,6 +53,6 @@ class CommentRepository(AbstractRepository[Comment, dict, dict]):
         comment = self.get_by_id(entity_id)
         if not comment:
             return False
-        comment.status = Comment.Status.DELETED
+        comment.status = CommentModel.Status.DELETED
         comment.save(update_fields=["status", "updated_at"])
         return True

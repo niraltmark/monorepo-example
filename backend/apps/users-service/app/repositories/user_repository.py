@@ -6,33 +6,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
 from app.db.session import get_db
-from app.models.user_model import User
+from app.models.user_model import UserModel
 from app.repositories.base import AbstractRepository
 from app.schemas.user_schema import UserCreate, UserUpdate
 
-class UserRepository(AbstractRepository[User, UserCreate, UserUpdate]):
+class UserRepository(AbstractRepository[UserModel, UserCreate, UserUpdate]):
 
     def __init__(self, session: AsyncSession = Depends(get_db)) -> None:
         super().__init__(session)
 
-    async def get_by_id(self, entity_id: str) -> User | None:
-        result = await self._session.execute(select(User).where(User.id == entity_id))
+    async def get_by_id(self, entity_id: str) -> UserModel | None:
+        result = await self._session.execute(select(UserModel).where(UserModel.id == entity_id))
         return result.scalar_one_or_none()
 
-    async def get_by_email(self, email: str) -> User | None:
-        result = await self._session.execute(select(User).where(User.email == email))
+    async def get_by_email(self, email: str) -> UserModel | None:
+        result = await self._session.execute(select(UserModel).where(UserModel.email == email))
         return result.scalar_one_or_none()
 
-    async def get_by_username(self, username: str) -> User | None:
-        result = await self._session.execute(select(User).where(User.username == username))
+    async def get_by_username(self, username: str) -> UserModel | None:
+        result = await self._session.execute(select(UserModel).where(UserModel.username == username))
         return result.scalar_one_or_none()
 
-    async def get_all(self, skip: int = 0, limit: int = 100) -> list[User]:
-        result = await self._session.execute(select(User).offset(skip).limit(limit))
+    async def get_all(self, skip: int = 0, limit: int = 100) -> list[UserModel]:
+        result = await self._session.execute(select(UserModel).offset(skip).limit(limit))
         return list(result.scalars().all())
 
-    async def create(self, data: UserCreate) -> User:
-        user = User(
+    async def create(self, data: UserCreate) -> UserModel:
+        user = UserModel(
             id=str(uuid.uuid4()),
             email=data.email,
             username=data.username,
@@ -44,7 +44,7 @@ class UserRepository(AbstractRepository[User, UserCreate, UserUpdate]):
         await self._session.refresh(user)
         return user
 
-    async def update(self, entity_id: str, data: UserUpdate) -> User | None:
+    async def update(self, entity_id: str, data: UserUpdate) -> UserModel | None:
         user = await self.get_by_id(entity_id)
         if not user:
             return None
@@ -55,7 +55,7 @@ class UserRepository(AbstractRepository[User, UserCreate, UserUpdate]):
         await self._session.refresh(user)
         return user
 
-    async def update_password(self, entity_id: str, new_hashed_password: str) -> User | None:
+    async def update_password(self, entity_id: str, new_hashed_password: str) -> UserModel | None:
         user = await self.get_by_id(entity_id)
         if not user:
             return None
