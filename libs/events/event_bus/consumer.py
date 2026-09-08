@@ -41,6 +41,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
+from contextlib import AsyncExitStack
 from typing import Any
 
 import redis.asyncio as aioredis
@@ -145,9 +146,9 @@ class EventConsumer:
         using FastAPI's ``solve_dependencies`` — exactly as it does for HTTP
         route handlers.
 
-        Because ContextService depends on ``Request`` via ``Depends(Request)``,
-        it will automatically read ``request.state.context`` from this synthetic
-        request, returning the originating user's identity to the handler.
+        Because ContextService receives FastAPI's special ``Request`` parameter,
+        it reads ``request.state.context`` from this synthetic request and returns
+        the originating user's identity to the handler.
         """
         scope: Scope = {
             "type": "http",
@@ -168,14 +169,17 @@ class EventConsumer:
             pass  # context_service not on path, or invalid data — skip silently
 
         dependant = get_dependant(path="/", call=handler)
-        solved = await solve_dependencies(
-            request=request,
-            dependant=dependant,
-            dependency_overrides_provider=self._app,
-        )
+        async with AsyncExitStack() as async_exit_stack:
+            solved = await solve_dependencies(
+                request=request,
+                dependant=dependant,
+                dependency_overrides_provider=self._app,
+                async_exit_stack=async_exit_stack,
+                embed_body_fields=False,
+            )
 
-        kwargs = solved.values
-        if "event" in handler.__code__.co_varnames:
-            kwargs["event"] = event
+            kwargs = solved.values
+            if "event" in handler.__code__.co_varnames:
+                kwargs["event"] = event
 
-        await handler(**kwargs)
+            await handler(**kwargs)
