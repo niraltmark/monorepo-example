@@ -148,6 +148,9 @@ monorepo-example/
 |---|---|
 | `backend/apps/*` | Deployable backend applications only. Do not place tests here. |
 | `frontend/apps/frontend` | The deployable browser application. |
+| `libs/application` | Shared FastAPI application factory, lifecycle, middleware, health endpoint, and event-consumer setup. |
+| `libs/database` | Shared SQLAlchemy `DatabaseBase`, database engine/session manager, and `get_database_session` FastAPI dependency. |
+| `libs/repositories` | Shared SQLAlchemy `BaseRepository` contract for FastAPI services. |
 | `libs/events` | Shared, framework-aware FastAPI event infrastructure. |
 | `libs/context-service` | Shared FastAPI request-context abstraction. |
 | `tests/*-tests` | Separate Nx projects that depend on the application under test. |
@@ -207,6 +210,9 @@ This produces the intended affected behavior.
 |---|---|
 | `tests/users-service-tests/unit/...` | Only `users-service-tests` |
 | `backend/apps/users-service/app/...` | `users-service` and `users-service-tests` |
+| `libs/application/...` | Every FastAPI service and its related test projects |
+| `libs/database/...` | Every FastAPI service and its related test projects |
+| `libs/repositories/...` | Every FastAPI service and its related test projects |
 | `libs/events/...` | Every FastAPI service and its related test projects |
 | `libs/context-service/...` | Every FastAPI service and its related test projects |
 
@@ -218,7 +224,7 @@ The shared Python libraries must be importable in development, test, and contain
 
 | Option | Recommended use |
 |---|---|
-| Add shared library paths to `PYTHONPATH` | Simple baseline for this repository. Add `/workspace/libs/events` and `/workspace/libs/context-service` in local targets and container environment. |
+| Add shared library paths to `PYTHONPATH` | Simple baseline for this repository. Add `/workspace/libs`, `/workspace/libs/events`, and `/workspace/libs/context-service` in local targets and container environment. |
 | Package each shared library with `pyproject.toml` and install it | Better for production maturity. Use editable/path dependencies per service. |
 | Use a Python Nx plugin | Optional future enhancement if automatic Python dependency inference is required. |
 
@@ -320,7 +326,7 @@ All FastAPI services use the same strict layering. The HTTP route handler is del
 flowchart LR
     Route[APIRouter route] -->|Depends(Service)| Service[Service layer]
     Service -->|Depends(Repository)| Repo[Repository layer]
-    Repo -->|Depends(get_db)| Session[AsyncSession]
+    Repo -->|Depends(get_database_session)| Session[AsyncSession]
     Session --> DB[(Service-owned PostgreSQL)]
 
     Route -->|Depends(ContextService)| Context[ContextService]
@@ -337,8 +343,8 @@ flowchart LR
 | Schema | `app/schemas/` | Pydantic request/response validation | Query the database |
 | Repository | `app/repositories/` | All SQLAlchemy persistence operations | Raise HTTP-specific errors or publish events |
 | Service | `app/services/` | Business rules, authorization checks, transaction-aware domain work, event publication | Query with SQLAlchemy directly |
-| Route | `app/api/v1/routes/` | HTTP validation, status code, dependency declaration | Construct dependencies manually |
-| Main | `app/main.py` | Application factory, middleware, lifespan, routers | Contain business behavior |
+| Controller module | `app/api/v1/controllers/` | HTTP validation, status code, dependency declaration | Construct dependencies manually |
+| Main | `app/main.py` | Service-specific application-factory invocation, router, settings, and event-handler registration | Contain business behavior |
 | Event handlers | `app/event_handlers.py` | Subscribe to other services’ events and invoke injected services | Access database/session directly |
 
 ### 7.2 Required class-based injection style
@@ -350,8 +356,11 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 class TodoRepository:
-    def __init__(self, session: AsyncSession = Depends(get_db)) -> None:
-        self._session = session
+    def __init__(
+        self,
+        database_session: AsyncSession = Depends(get_database_session),
+    ) -> None:
+        self._session = database_session
 
 class TodoService:
     def __init__(
@@ -376,22 +385,18 @@ This pattern is valid because FastAPI treats classes as callable dependencies an
 
 ### 7.3 Database session dependency
 
-Each FastAPI service must expose one `get_db()` generator dependency.
+All FastAPI services use the shared `libs/database/database_session.py` implementation. The service-specific application factory creates one `DatabaseSessionManager` from that service's `DATABASE_URL`, stores it on `app.state`, and exposes one request-scoped dependency.
 
 ```python
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionFactory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+async def get_database_session(
+    request: Request,
+) -> AsyncGenerator[AsyncSession, None]:
+    database_session_manager = request.app.state.database_session_manager
+    async for database_session in database_session_manager.get_session():
+        yield database_session
 ```
 
-This yields one session per dependency-resolution scope. Repositories receive the session through `Depends(get_db)`, and services receive repositories through `Depends(RepositoryClass)`.
+This yields one transaction-aware session per dependency-resolution scope. Repositories receive the session through `Depends(get_database_session)`, and services receive repositories through `Depends(RepositoryClass)`.
 
 ### 7.4 Application lifespan
 
@@ -400,23 +405,23 @@ Every FastAPI application must use an async lifespan to initialize database meta
 ```python
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)  # local dev only
+    async with database_session_manager.engine.begin() as connection:
+        await connection.run_sync(DatabaseBase.metadata.create_all)
 
-    init_event_bus(app, settings.REDIS_URL)
-
+    redis_client = init_event_bus(app, settings.REDIS_URL)
     consumer = EventConsumer(app=app, redis_url=settings.REDIS_URL)
     register_handlers(consumer)
     await consumer.start()
 
-    yield
-
-    await consumer.stop()
-    await app.state.redis.aclose()
-    await engine.dispose()
+    try:
+        yield
+    finally:
+        await consumer.stop()
+        await redis_client.aclose()
+        await database_session_manager.dispose()
 ```
 
-Production schema changes must come from migration jobs, not from `Base.metadata.create_all()`.
+Production schema changes must come from migration jobs, not from `DatabaseBase.metadata.create_all()`.
 
 ---
 
@@ -743,7 +748,7 @@ comments-service/
 ├── comments/
 │   ├── models.py
 │   ├── repositories/
-│   │   ├── base.py
+│   │   ├── base_repository.py
 │   │   └── comment_repository.py
 │   ├── services/
 │   │   └── comment_service.py
@@ -843,10 +848,10 @@ Each service receives a distinct production Dockerfile. The container must inclu
 
 | Image | Port | Must include |
 |---|---:|---|
-| `users-service` | 8001 | service source, `libs/events`, `libs/context-service`, Python dependencies |
-| `todos-service` | 8002 | service source, `libs/events`, `libs/context-service`, Python dependencies |
+| `users-service` | 8001 | service source, `libs/application`, `libs/database`, `libs/repositories`, `libs/events`, `libs/context-service`, Python dependencies |
+| `todos-service` | 8002 | service source, `libs/application`, `libs/database`, `libs/repositories`, `libs/events`, `libs/context-service`, Python dependencies |
 | `comments-service` | 8003 | Django source, Python dependencies |
-| `comments-service-fastapi` | 8004 | service source, `libs/events`, `libs/context-service`, Python dependencies |
+| `comments-service-fastapi` | 8004 | service source, `libs/application`, `libs/database`, `libs/repositories`, `libs/events`, `libs/context-service`, Python dependencies |
 | `frontend` | 80 in container | Built Vite asset bundle served by Nginx |
 | `redis` | 6379 | Redis 7 Alpine |
 

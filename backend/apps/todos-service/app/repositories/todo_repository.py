@@ -4,15 +4,15 @@ from fastapi import Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
+from database.database_session import get_database_session
 from app.models.todo_model import TodoModel
-from app.repositories.base import AbstractRepository
+from repositories.base_repository import BaseRepository
 from app.schemas.todo_schema import TodoCreate, TodoUpdate
 
-class TodoRepository(AbstractRepository[TodoModel, TodoCreate, TodoUpdate]):
+class TodoRepository(BaseRepository[TodoModel, TodoCreate, TodoUpdate]):
 
-    def __init__(self, session: AsyncSession = Depends(get_db)) -> None:
-        super().__init__(session)
+    def __init__(self, database_session: AsyncSession = Depends(get_database_session)) -> None:
+        super().__init__(database_session)
 
     async def get_by_id(self, entity_id: str) -> TodoModel | None:
         result = await self._session.execute(select(TodoModel).where(TodoModel.id == entity_id))

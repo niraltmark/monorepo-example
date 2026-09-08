@@ -1,7 +1,7 @@
 from typing import Any
 
 from comments.comment_model import CommentModel
-from comments.repositories.base import AbstractRepository
+from comments.repositories.base_repository import AbstractRepository
 
 class CommentRepository(AbstractRepository[CommentModel, dict, dict]):
 

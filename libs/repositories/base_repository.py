@@ -7,10 +7,10 @@ ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType")
 UpdateSchemaType = TypeVar("UpdateSchemaType")
 
-class AbstractRepository(ABC, Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
+class BaseRepository(ABC, Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
+    def __init__(self, database_session: AsyncSession) -> None:
+        self._session = database_session
 
     @abstractmethod
     async def get_by_id(self, entity_id: str) -> ModelType | None:

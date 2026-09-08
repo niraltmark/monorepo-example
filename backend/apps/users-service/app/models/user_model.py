@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.session import Base
+from database.database_base import DatabaseBase
 
 
-class UserModel(Base):
+class UserModel(DatabaseBase):
     """
     User model. No foreign keys — other services reference users by user_id (UUID string).
     """

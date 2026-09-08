@@ -5,7 +5,7 @@ from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import settings
-from app.db.session import Base
+from database.database_base import DatabaseBase
 
 # Import all models so Alembic can detect them
 from app.models import user_model  # noqa: F401
@@ -16,7 +16,7 @@ config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+target_metadata = DatabaseBase.metadata
 
 
 def run_migrations_offline() -> None:

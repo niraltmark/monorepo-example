@@ -4,11 +4,12 @@
   "projectType": "application",
   "sourceRoot": "backend/apps/todos-service",
   "tags": ["scope:backend", "type:service", "lang:python"],
+  "implicitDependencies": ["application", "database", "repositories", "context-service", "events"],
   "targets": {
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8002",
+        "command": "PYTHONPATH=../../../libs:../../../libs/events:../../../libs/context-service uvicorn app.main:app --reload --host 0.0.0.0 --port 8002",
         "cwd": "backend/apps/todos-service"
       }
     },
@@ -22,7 +23,7 @@
     "docker-build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "docker build -t todos-service:latest .",
+        "command": "docker build -f Dockerfile -t todos-service:latest ../../..",
         "cwd": "backend/apps/todos-service"
       }
     }

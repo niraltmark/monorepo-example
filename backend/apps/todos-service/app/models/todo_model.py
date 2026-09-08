@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, Enum, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.session import Base
+from database.database_base import DatabaseBase
 
 
 class TodoStatus(str):
@@ -13,7 +13,7 @@ class TodoStatus(str):
     DONE = "done"
 
 
-class TodoModel(Base):
+class TodoModel(DatabaseBase):
     """
     Todo model.
     - user_id: references a User in the users-service by UUID string.

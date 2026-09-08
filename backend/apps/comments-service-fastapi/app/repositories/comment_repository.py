@@ -4,15 +4,15 @@ from fastapi import Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
+from database.database_session import get_database_session
 from app.models.comment_model import CommentModel
-from app.repositories.base import AbstractRepository
+from repositories.base_repository import BaseRepository
 from app.schemas.comment_schema import CommentCreate, CommentUpdate
 
-class CommentRepository(AbstractRepository[CommentModel, CommentCreate, CommentUpdate]):
+class CommentRepository(BaseRepository[CommentModel, CommentCreate, CommentUpdate]):
 
-    def __init__(self, session: AsyncSession = Depends(get_db)) -> None:
-        super().__init__(session)
+    def __init__(self, database_session: AsyncSession = Depends(get_database_session)) -> None:
+        super().__init__(database_session)
 
     async def get_by_id(self, entity_id: str) -> CommentModel | None:
         result = await self._session.execute(

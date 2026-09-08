@@ -9,7 +9,7 @@
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python -m pytest unit/ integration/ -v --cov=../../backend/apps/todos-service/app --cov-report=term-missing",
+        "command": "PYTHONPATH=../../backend/apps/todos-service:../../libs:../../libs/events:../../libs/context-service python -m pytest unit/ integration/ -v --cov=../../backend/apps/todos-service/app --cov-report=term-missing",
         "cwd": "tests/todos-service-tests"
       }
     },

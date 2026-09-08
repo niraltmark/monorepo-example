@@ -69,12 +69,30 @@ services:
       timeout: 5s
       retries: 5
 
+  comments-fastapi-db:
+    image: postgres:16-alpine
+    container_name: comments-fastapi-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: comments_fastapi_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - comments_fastapi_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d comments_fastapi_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── Backend Microservices ──────────────────────────────────────────────────
 
   users-service:
     build:
-      context: ./backend/apps/users-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/apps/users-service/Dockerfile
     container_name: users-service
     restart: unless-stopped
     ports:
@@ -83,7 +101,10 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@users-db:5432/users_db
       SECRET_KEY: ${SECRET_KEY:-super-secret-change-in-production}
       DEBUG: "false"
+      REDIS_URL: redis://redis:6379
     depends_on:
+      redis:
+        condition: service_healthy
       users-db:
         condition: service_healthy
     healthcheck:
@@ -94,8 +115,8 @@ services:
 
   todos-service:
     build:
-      context: ./backend/apps/todos-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/apps/todos-service/Dockerfile
     container_name: todos-service
     restart: unless-stopped
     ports:
@@ -104,11 +125,38 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@todos-db:5432/todos_db
       USERS_SERVICE_URL: http://users-service:8001
       DEBUG: "false"
+      REDIS_URL: redis://redis:6379
     depends_on:
+      redis:
+        condition: service_healthy
       todos-db:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  comments-service-fastapi:
+    build:
+      context: .
+      dockerfile: backend/apps/comments-service-fastapi/Dockerfile
+    container_name: comments-service-fastapi
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@comments-fastapi-db:5432/comments_fastapi_db
+      SECRET_KEY: ${SECRET_KEY:-super-secret-change-in-production}
+      REDIS_URL: redis://redis:6379
+      DEBUG: "false"
+    depends_on:
+      redis:
+        condition: service_healthy
+      comments-fastapi-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -155,3 +203,4 @@ volumes:
   users_db_data:
   todos_db_data:
   comments_db_data:
+  comments_fastapi_db_data:

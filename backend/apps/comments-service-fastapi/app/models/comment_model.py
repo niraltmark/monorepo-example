@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 from sqlalchemy import DateTime, Enum, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.session import Base
+from database.database_base import DatabaseBase
 
 
-class CommentModel(Base):
+class CommentModel(DatabaseBase):
     """
     Comment model.
 
