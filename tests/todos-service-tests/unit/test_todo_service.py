@@ -2,9 +2,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.models.todo import Todo
+from app.models.todo_model import Todo
 from app.repositories.todo_repository import TodoRepository
-from app.schemas.todo import TodoCreate, TodoStatus
+from app.schemas.todo_schema import TodoCreate, TodoStatus
 from app.services.todo_service import TodoService
 from context_service.models import RequestContext
 from event_bus.publisher import EventPublisher

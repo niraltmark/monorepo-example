@@ -5,9 +5,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.models.comment import Comment
+from app.models.comment_model import Comment
 from app.repositories.base import AbstractRepository
-from app.schemas.comment import CommentCreate, CommentUpdate
+from app.schemas.comment_schema import CommentCreate, CommentUpdate
 
 class CommentRepository(AbstractRepository[Comment, CommentCreate, CommentUpdate]):
 

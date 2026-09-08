@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 from rest_framework.exceptions import NotFound, ValidationError
 
-from comments.models import Comment
+from comments.comment_model import Comment
 from comments.repositories.comment_repository import CommentRepository
 from comments.services.comment_service import CommentService
 

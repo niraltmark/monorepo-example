@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, status
 
-from app.schemas.comment import CommentCreate, CommentListResponse, CommentRead, CommentUpdate
+from app.schemas.comment_schema import CommentCreate, CommentListResponse, CommentRead, CommentUpdate
 from app.services.comment_service import CommentService
 
 router = APIRouter(prefix="/comments", tags=["comments"])

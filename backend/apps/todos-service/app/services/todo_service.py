@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 
 from app.repositories.todo_repository import TodoRepository
-from app.schemas.todo import TodoCreate, TodoListResponse, TodoRead, TodoUpdate
+from app.schemas.todo_schema import TodoCreate, TodoListResponse, TodoRead, TodoUpdate
 from context_service.service import ContextService
 from event_bus.dependencies import get_event_publisher
 from event_bus.publisher import EventPublisher

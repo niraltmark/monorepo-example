@@ -1,6 +1,6 @@
 from typing import Any
 
-from comments.models import Comment
+from comments.comment_model import Comment
 from comments.repositories.base import AbstractRepository
 
 class CommentRepository(AbstractRepository[Comment, dict, dict]):

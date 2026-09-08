@@ -5,9 +5,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.models.todo import Todo
+from app.models.todo_model import Todo
 from app.repositories.base import AbstractRepository
-from app.schemas.todo import TodoCreate, TodoUpdate
+from app.schemas.todo_schema import TodoCreate, TodoUpdate
 
 class TodoRepository(AbstractRepository[Todo, TodoCreate, TodoUpdate]):
 

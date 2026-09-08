@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.test import APIClient
 
-from comments.models import Comment
+from comments.comment_model import Comment
 
 
 @pytest.fixture

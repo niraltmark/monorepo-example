@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from comments.models import Comment
+from comments.comment_model import Comment
 
 class PaginationQuerySerializer(serializers.Serializer):
 

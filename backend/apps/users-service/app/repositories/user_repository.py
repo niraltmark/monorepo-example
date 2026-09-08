@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
 from app.db.session import get_db
-from app.models.user import User
+from app.models.user_model import User
 from app.repositories.base import AbstractRepository
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user_schema import UserCreate, UserUpdate
 
 class UserRepository(AbstractRepository[User, UserCreate, UserUpdate]):
 

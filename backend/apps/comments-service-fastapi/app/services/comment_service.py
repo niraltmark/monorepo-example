@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 
 from app.repositories.comment_repository import CommentRepository
-from app.schemas.comment import CommentCreate, CommentListResponse, CommentRead, CommentUpdate
+from app.schemas.comment_schema import CommentCreate, CommentListResponse, CommentRead, CommentUpdate
 from context_service.service import ContextService
 from event_bus.dependencies import get_event_publisher
 from event_bus.publisher import EventPublisher

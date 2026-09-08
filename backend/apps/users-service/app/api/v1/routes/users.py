@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.schemas.user import (
+from app.schemas.user_schema import (
     LoginRequest,
     TokenResponse,
     UserCreate,

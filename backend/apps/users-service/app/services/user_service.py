@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, status
 
 from app.core.security import create_access_token, hash_password, verify_password
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import (
+from app.schemas.user_schema import (
     LoginRequest,
     TokenResponse,
     UserCreate,

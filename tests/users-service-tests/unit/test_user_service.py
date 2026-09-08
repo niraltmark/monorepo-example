@@ -2,9 +2,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.models.user import User
+from app.models.user_model import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserCreate
+from app.schemas.user_schema import UserCreate
 from app.services.user_service import UserService
 from context_service.models import RequestContext
 from event_bus.publisher import EventPublisher

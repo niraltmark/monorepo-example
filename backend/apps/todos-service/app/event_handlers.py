@@ -3,7 +3,7 @@ import logging
 
 from fastapi import Depends
 
-from app.schemas.todo import TodoUpdate
+from app.schemas.todo_schema import TodoUpdate
 from app.services.todo_service import TodoService
 from event_bus.consumer import EventConsumer
 from event_bus.schemas import Event
